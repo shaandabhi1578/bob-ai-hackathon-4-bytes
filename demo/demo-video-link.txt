@@ -1,1 +1,17 @@
+# GridGuard AI - Demo Video Links & Assets
+
+### 1. Local Offline Demo Recording (Included in Repository):
+File: demo/gridguard-demo-video.webp (9.8 MB)
+Format: Animated WebP Video Walkthrough (openable in Chrome/Safari/Firefox or any video player)
+Coverage:
+- RBAC Authentication (Chief Dispatcher vs Field Technician)
+- Live SCADA Telemetry & Interactive Map
+- ML Failure Prediction Engine & Weibull Degradation Curve
+- Live Weather Correlation & Severe Storm Vector
+- Haversine Proximity-based Crew Dispatch Center
+- Multi-Channel Customer Outage Broadcast (FCM / SMS)
+- AI Copilot Diagnostic Q&A
+
+### 2. Online Video Presentation / Loom Link:
 https://youtu.be/gridguard-ai-demo
+(Judges: Replace or open this link, or play demo/gridguard-demo-video.webp directly)
