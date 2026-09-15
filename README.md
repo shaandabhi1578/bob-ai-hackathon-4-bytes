@@ -1,6 +1,6 @@
 # GridGuard AI — Power Grid Intelligence & Maintenance Command Center
 
-**Team:** 4 bytes  
+**Team:** bob-ai-hackathon-4-bytes  
 **Track:** AI  
 **Theme:** Turn Idea into Impact Faster  
 **Built with:** IBM Bob IDE & Intelligent Development Workflow  
