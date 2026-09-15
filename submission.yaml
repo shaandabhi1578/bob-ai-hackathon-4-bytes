@@ -3,10 +3,16 @@ team:
   track: "AI"
   lead:
     name: "Shaan Dabhi"
-    email: "shaandabhi@gmail.com"
+    email: "25dce018@charusat.edu.in"
   members:
     - name: "Shaan Dabhi"
-      email: "shaandabhi@gmail.com"
+      email: "25dce018@charusat.edu.in"
+    - name: "Shubham Desai"
+      email: "25dce020@charusat.edu.in"
+    - name: "Vraj Gajjar"
+      email: "25dce027@charusat.edu.in"
+    - name: "Vedant Kapadia"
+      email: "25dce042@charusat.edu.in"
 
 submission:
   title: "GridGuard AI — Power Grid Intelligence & Maintenance Command Center"

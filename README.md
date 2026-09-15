@@ -75,3 +75,12 @@ In compliance with the **IBM Bob Hackathon Guide (Pages 18–19)**:
 - **8-hour session TTL** with automatic expiry and re-authentication prompt.
 - **BroadcastChannel schema validation** prevents malformed cross-tab event injection.
 - **FCM serverless endpoint** secured with explicit CORS origin allowlist; fails closed (503) if credentials are absent.
+
+---
+
+## 👥 Team "4 bytes" (CHARUSAT)
+
+- **Shaan Dabhi** (Team Lead) — `25dce018@charusat.edu.in`
+- **Shubham Desai** — `25dce020@charusat.edu.in`
+- **Vraj Gajjar** — `25dce027@charusat.edu.in`
+- **Vedant Kapadia** — `25dce042@charusat.edu.in`
