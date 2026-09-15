@@ -1,5 +1,5 @@
 team:
-  name: "bob-ai-hackathon-4-bytes"
+  name: "4 bytes"
   track: "AI"
   lead:
     name: "Shaan Dabhi"
@@ -30,5 +30,5 @@ submission:
     - "105 automated tests (Vitest + React Testing Library) covering risk engine and React context"
   demo_url: "https://gridguard-app.vercel.app"
   demo_video_url: ""
-  repository_url: "https://github.com/shaandabhi1578/Bob_hackathon"
+  repository_url: "https://github.com/shaandabhi1578/bob-ai-hackathon-4-bytes"
   bob_sessions_dir: "bob_sessions/"
