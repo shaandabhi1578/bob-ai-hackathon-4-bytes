@@ -1,0 +1,46 @@
+name: Validate Submission
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Check Required Files Exist
+        run: |
+          echo "Verifying submission template structure..."
+          test -f submission.yaml || { echo "::error::submission.yaml is missing!"; exit 1; }
+          test -f docs/setup-guide.md || { echo "::error::docs/setup-guide.md is missing!"; exit 1; }
+          test -f demo/demo-video-link.txt || { echo "::error::demo/demo-video-link.txt is missing!"; exit 1; }
+          test -d demo/screenshots || { echo "::error::demo/screenshots directory is missing!"; exit 1; }
+          
+          # Check at least 3 screenshots
+          COUNT=$(find demo/screenshots -type f \( -name "*.png" -o -name "*.jpg" -o -name "*.jpeg" -o -name "*.webp" \) | wc -l)
+          if [ "$COUNT" -lt 3 ]; then
+            echo "::error::demo/screenshots must contain at least 3 screenshots, found $COUNT"
+            exit 1
+          fi
+          echo "Template structure verified successfully!"
+
+      - name: Validate submission.yaml Content
+        run: |
+          # Basic check to ensure required fields are not empty placeholders
+          grep -q "name:" submission.yaml || { echo "::error::team name missing in submission.yaml"; exit 1; }
+          grep -q "title:" submission.yaml || { echo "::error::submission title missing in submission.yaml"; exit 1; }
+          grep -q "problem_statement:" submission.yaml || { echo "::error::problem_statement missing in submission.yaml"; exit 1; }
+          grep -q "solution_summary:" submission.yaml || { echo "::error::solution_summary missing in submission.yaml"; exit 1; }
+          echo "submission.yaml content validation passed!"
+
+      - name: Verify No Secrets Committed
+        run: |
+          if [ -f .env ]; then
+            echo "::error::Real .env file detected in repository! Must be ignored."; exit 1;
+          fi
+          echo "Security verification passed!"

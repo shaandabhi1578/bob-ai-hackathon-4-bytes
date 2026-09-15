@@ -1,0 +1,28 @@
+team:
+  name: "GridGuard Squad"
+  track: "AI"
+  lead:
+    name: "Shaan Dabhi"
+    email: "shaandabhi@gmail.com"
+  members:
+    - name: "Shaan Dabhi"
+      email: "shaandabhi@gmail.com"
+
+submission:
+  title: "GridGuard AI — Power Grid Intelligence & Maintenance Command Center"
+  problem_statement: >
+    Regional power transmission grids face catastrophic equipment failures and blackouts
+    caused by unpredicted transformer thermal ramps, extreme meteorological squalls, and delayed
+    field crew response. Operators lack unified spatial telemetry, dynamic risk forecasting,
+    and coordinated multi-channel emergency dispatch.
+  solution_summary: >
+    GridGuard AI is a Transmission & Substation Intelligence Operating System for SLDC Gujarat.
+    Synthesizing SCADA multi-sensor telemetry, real-time Open-Meteo weather hazard modeling, and
+    automated proximity crew dispatch, it delivers 3–7 day advance failure warnings, interactive
+    meteorological simulations, and instant emergency alerts via Firebase Cloud Messaging (FCM).
+  key_features:
+    - "Multi-factor SCADA failure risk engine (Sensor 40%, Weather 25%, History 20%, Criticality 15%)"
+    - "Interactive meteorological portal with Open-Meteo live sync and dynamic storm scenario simulation"
+    - "Algorithmic Haversine proximity crew dispatch with strict real-time availability guards"
+    - "Multi-channel emergency broadcast via Firebase Cloud Messaging (FCM topic: gridguard-outages), Web Push, and WhatsApp/SMS"
+    - "Role-Based Access Control (RBAC) with Chief Dispatcher (Admin) and restricted Field Technician (Employee) profiles"
