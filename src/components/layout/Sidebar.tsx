@@ -35,48 +35,42 @@ export const Sidebar: React.FC = () => {
   }[] = [
     {
       id: 'dashboard',
-      label: 'Dashboard',
+      label: 'Dashboard Overview',
       icon: LayoutDashboard,
     },
     {
-      id: 'asset-health',
-      label: 'Asset Health',
-      icon: Activity,
-      badge: criticalAssetsCount > 0 ? `${criticalAssetsCount} Crit` : undefined,
+      id: 'failure-prediction',
+      label: 'AI Failure Prediction',
+      icon: AlertTriangle,
+      badge: criticalAssetsCount > 0 ? `${criticalAssetsCount} Critical` : undefined,
       badgeVariant: 'critical',
     },
     {
       id: 'weather',
-      label: 'Weather',
+      label: 'Live Weather Portal',
       icon: CloudLightning,
-      badge: 'Alert',
-      badgeVariant: 'warning',
-    },
-    {
-      id: 'failure-prediction',
-      label: 'Failure Prediction',
-      icon: AlertTriangle,
-      badge: 'AI Core',
-      badgeVariant: 'neutral',
-    },
-    {
-      id: 'work-analysis',
-      label: 'Work & Data Analysis',
-      icon: BarChart3,
     },
     {
       id: 'crew-management',
-      label: isEmployee ? 'My Crew & Work Orders' : 'Crew Management',
+      label: isEmployee ? 'My Assigned Work Orders' : 'Crew Dispatch Center',
       icon: Users,
-      badge: isEmployee ? 'Read-Only' : `${availableCrewsCount} Avail`,
+      badge: isEmployee ? 'Read-Only' : `${availableCrewsCount} Ready`,
       badgeVariant: isEmployee ? 'neutral' : 'healthy',
     },
     {
       id: 'outage-notifications',
-      label: isEmployee ? 'Outage Bulletins' : 'Outage Notifications',
+      label: isEmployee ? 'Outage Bulletins' : 'Outage Notifications (FCM)',
       icon: Send,
-      badge: isEmployee ? 'Advisories' : undefined,
-      badgeVariant: 'neutral',
+    },
+    {
+      id: 'asset-health',
+      label: 'Asset Diagnostics',
+      icon: Activity,
+    },
+    {
+      id: 'work-analysis',
+      label: 'Performance Analytics',
+      icon: BarChart3,
     },
     {
       id: 'incident-history',
@@ -85,7 +79,7 @@ export const Sidebar: React.FC = () => {
     },
     {
       id: 'settings',
-      label: 'Settings',
+      label: 'Settings & Security',
       icon: Settings,
     },
   ];

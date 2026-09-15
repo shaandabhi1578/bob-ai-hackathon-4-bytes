@@ -32,7 +32,7 @@ export const DashboardView: React.FC = () => {
       {/* Critical Alerts Panel (Top 3 most important) */}
       <CriticalAlertsPanel />
 
-      {/* Operator Quick Reference Strip (Dynamically Answers the 4 essential SCADA questions) */}
+      {/* Operator Strategic Overview Strip */}
       <div
         style={{
           marginTop: '1.25rem',
@@ -42,37 +42,37 @@ export const DashboardView: React.FC = () => {
           padding: '1rem 1.25rem',
           display: 'grid',
           gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: '1rem',
+          gap: '1.25rem',
           boxShadow: 'var(--shadow-sm)',
         }}
       >
         <div style={{ borderRight: '1px solid #f1f5f9', paddingRight: '0.75rem' }}>
           <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
-            1. Is the grid healthy?
+            Fleet Reliability Status
           </div>
           <div
             style={{
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              color: gridHealthScore >= 80 ? '#16a34a' : gridHealthScore >= 60 ? '#d97706' : '#dc2626',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              color: gridHealthScore >= 80 ? '#16a34a' : '#d97706',
               marginTop: '0.2rem',
             }}
           >
-            {gridHealthScore >= 80 ? 'Yes' : 'Elevated Stress'} ({gridHealthScore}% Fleet Stability)
+            {gridHealthScore}% Fleet Stability
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.1rem' }}>
-            {gridHealthScore >= 80 ? 'Nominal voltage across 400kV corridor.' : 'Active thermal & weather degradation.'}
+          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
+            Nominal voltage across 400kV corridors.
           </div>
         </div>
 
         <div style={{ borderRight: '1px solid #f1f5f9', paddingRight: '0.75rem' }}>
           <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
-            2. Where is the biggest problem?
+            Highest Risk Substation
           </div>
           <div
             style={{
-              fontSize: '0.84rem',
-              fontWeight: 600,
+              fontSize: '0.88rem',
+              fontWeight: 700,
               color: topRiskAsset.failureRisk >= 80 ? '#dc2626' : '#d97706',
               marginTop: '0.2rem',
               cursor: 'pointer',
@@ -81,24 +81,24 @@ export const DashboardView: React.FC = () => {
               setSelectedAssetId(topRiskAsset.id);
               setActiveTab('failure-prediction');
             }}
-            title="Open failure prediction for highest risk asset"
+            title="Open failure prediction"
           >
-            {topRiskAsset.substation}
+            {topRiskAsset.substation} ({topRiskAsset.name})
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.1rem' }}>
-            {topRiskAsset.name} ({topRiskAsset.failureRisk}% failure probability).
+          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
+            Thermal ramp detected • {topRiskAsset.failureRisk}% probability.
           </div>
         </div>
 
         <div style={{ borderRight: '1px solid #f1f5f9', paddingRight: '0.75rem' }}>
           <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
-            3. What needs attention right now?
+            Active Weather Vector
           </div>
           <div
             style={{
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              color: activeWeatherRegion.gridWeatherRisk === 'HIGH' ? '#dc2626' : '#d97706',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              color: activeWeatherRegion.gridWeatherRisk === 'HIGH' ? '#dc2626' : '#0f172a',
               marginTop: '0.2rem',
               cursor: 'pointer',
             }}
@@ -107,21 +107,21 @@ export const DashboardView: React.FC = () => {
             }}
             title="Open weather portal"
           >
-            {activeWeatherRegion.condition}
+            {activeWeatherRegion.name} ({activeWeatherRegion.condition})
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.1rem' }}>
-            {activeWeatherRegion.name}: {activeWeatherRegion.windSpeed} km/h • {activeWeatherRegion.rainfallProb}% rain.
+          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
+            Wind: {activeWeatherRegion.windSpeed} km/h • Rain: {activeWeatherRegion.rainfallProb}%.
           </div>
         </div>
 
         <div>
           <div style={{ fontSize: '0.7rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 600 }}>
-            4. What should I do next?
+            Recommended Field Action
           </div>
           <div
             style={{
-              fontSize: '0.84rem',
-              fontWeight: 600,
+              fontSize: '0.88rem',
+              fontWeight: 700,
               color: '#2563eb',
               marginTop: '0.2rem',
               cursor: 'pointer',
@@ -136,19 +136,19 @@ export const DashboardView: React.FC = () => {
           >
             <span>
               {topRiskAsset.assignedCrewId
-                ? `Manage ${topRiskAsset.assignedCrewId} on ${topRiskAsset.id}`
+                ? `${topRiskAsset.assignedCrewId} Assigned on-site`
                 : nearestCrewToSelected.crew
-                ? `Dispatch ${nearestCrewToSelected.crew.id} to ${topRiskAsset.id}`
-                : `Inspect ${topRiskAsset.id} (All Units Busy)`}
+                ? `Dispatch ${nearestCrewToSelected.crew.id}`
+                : `Inspect ${topRiskAsset.id}`}
             </span>
             <ArrowUpRight size={13} />
           </div>
-          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '0.15rem' }}>
             {topRiskAsset.assignedCrewId
-              ? `Unit ${topRiskAsset.assignedCrewId} active on-site.`
+              ? `Work order active on ${topRiskAsset.id}.`
               : nearestCrewToSelected.crew
-              ? `Nearest unit staged ${nearestCrewToSelected.distanceKm} km away (${nearestCrewToSelected.etaMinutes} min ETA).`
-              : 'Zero units currently available in depot.'}
+              ? `Staged ${nearestCrewToSelected.distanceKm} km away (${nearestCrewToSelected.etaMinutes} min ETA).`
+              : 'Standby mode.'}
           </div>
         </div>
       </div>

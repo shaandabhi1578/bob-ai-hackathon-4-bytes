@@ -63,32 +63,17 @@ export const Header: React.FC = () => {
       <div className="header-left">
         <div className="header-title-block">
           <h1>GridGuard AI</h1>
-          <p>Power Grid Intelligence & Maintenance Command Center</p>
+          <p>Transmission & Substation Intelligence Command Center</p>
         </div>
 
         <div className="header-status-badge">
           <span className="status-dot healthy" />
-          <span>GRID STABLE — ELEVATED WEATHER RISK</span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontSize: '0.75rem',
-            color: '#64748b',
-            borderLeft: '1px solid #e2e8f0',
-            paddingLeft: '0.75rem',
-          }}
-        >
-          <Radio size={13} color="#16a34a" />
-          <span>Telemetry Live (99.8%)</span>
+          <span>SYSTEM NOMINAL</span>
         </div>
       </div>
 
       <div className="header-right">
-        {/* Master Clock & Grid Frequency */}
+        {/* Master Clock */}
         <div className="clock-telemetry">
           <div className="time">{currentTime || '12:00:00'} IST</div>
           <div className="freq">
@@ -109,20 +94,7 @@ export const Header: React.FC = () => {
           title="Toggle Hackathon Guided Walkthrough (Steps 1–21)"
         >
           <PlayCircle size={14} color={isDemoTourActive ? '#2563eb' : '#475569'} />
-          <span>{isDemoTourActive ? 'Demo Mode Active' : 'Hackathon Demo Flow'}</span>
-        </button>
-
-        {/* Quick Simulator Shortcut */}
-        <button
-          onClick={() => {
-            setSelectedAssetId('T-104');
-            setActiveTab('failure-prediction');
-          }}
-          className="btn-secondary btn-sm"
-          title="Open AI Risk Prediction & Live Simulator"
-        >
-          <Sliders size={14} />
-          <span>AI Simulator</span>
+          <span>{isDemoTourActive ? 'Demo Mode Active' : 'Guided Tour'}</span>
         </button>
 
         {/* Notification Bell */}
