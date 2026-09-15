@@ -1,5 +1,7 @@
 # GridGuard AI — Power Grid Intelligence & Maintenance Command Center
 
+**Team:** 4 bytes  
+**Track:** AI  
 **Theme:** Turn Idea into Impact Faster  
 **Built with:** IBM Bob IDE & Intelligent Development Workflow  
 **Live Production URL:** [https://gridguard-app.vercel.app](https://gridguard-app.vercel.app)  
