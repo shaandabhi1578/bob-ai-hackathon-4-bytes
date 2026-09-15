@@ -30,5 +30,5 @@ submission:
     - "105 automated tests (Vitest + React Testing Library) covering risk engine and React context"
   demo_url: "https://gridguard-app.vercel.app"
   demo_video_url: ""
-  repository_url: "https://github.com/shaandabhi/gridguard-ai"
+  repository_url: "https://github.com/shaandabhi1578/Bob_hackathon"
   bob_sessions_dir: "bob_sessions/"
