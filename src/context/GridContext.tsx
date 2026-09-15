@@ -182,52 +182,94 @@ export const GridProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // BroadcastChannel listener for multi-device/multi-tab real-time alerts
   useEffect(() => {
     let channel: BroadcastChannel | null = null;
-    const handleIncomingDispatch = (data: any) => {
-      if (data?.type === 'CREW_DISPATCHED') {
-        playAlertChime();
-        setLiveBroadcastAlert({
-          id: Date.now().toString(),
-          title: `🚨 EMERGENCY WORK ORDER: ${data.crewId}`,
-          message: `${data.sender} dispatched ${data.crewId} (${data.crewLead || 'Lead'}) to ${data.assetName} at ${data.substation || 'Bay'}.\nTarget Incident: ${data.assetId} | Destination Mobile: +91 9408487768`,
-          timestamp: data.timestamp,
-          sender: data.sender,
-        });
 
-        // Sync crew status in this tab
-        setCrews((prev) =>
-          prev.map((c) =>
-            c.id === data.crewId
-              ? {
-                  ...c,
-                  status: 'Assigned',
-                  currentAssignment: `Emergency dispatch to ${data.assetName} (${data.substation || ''})`,
-                }
-              : c
-          )
-        );
+    /**
+     * Validates an incoming cross-tab dispatch payload before allowing it to
+     * mutate application state.  Only the fields this handler actually reads are
+     * accepted; anything outside the schema is ignored.  All accepted string
+     * fields are sliced to a safe maximum length to prevent oversized inputs from
+     * reaching the render tree.
+     */
+    const validateDispatchPayload = (
+      raw: unknown
+    ): { type: string; crewId: string; crewLead: string; assetId: string; assetName: string; substation: string; sender: string; timestamp: string } | null => {
+      if (!raw || typeof raw !== 'object') return null;
+      const d = raw as Record<string, unknown>;
 
-        // Also update the target asset with the assigned crew!
-        if (data.assetId) {
-          setAssets((prev) =>
-            prev.map((a) =>
-              a.id === data.assetId
-                ? {
-                    ...a,
-                    assignedCrewId: data.crewId,
-                    recommendedAction: `In Progress: ${data.crewId} dispatched to site`,
-                  }
-                : a
-            )
-          );
-        }
+      // type must be the exact expected literal
+      if (d.type !== 'CREW_DISPATCHED') return null;
 
-        // Trigger native phone/browser push if enabled
-        triggerPhoneAlert(
-          '9408487768',
-          `🚨 Emergency Dispatch: ${data.crewId}`,
-          `${data.sender} dispatched ${data.crewId} to ${data.assetName}`
-        );
+      // All operational fields must be non-empty strings
+      const requiredStrings = ['crewId', 'assetId', 'assetName'] as const;
+      for (const key of requiredStrings) {
+        if (typeof d[key] !== 'string' || !(d[key] as string).trim()) return null;
       }
+
+      // crewId must match the known crew ID pattern (e.g. "Crew 04")
+      const crewIdPattern = /^Crew\s\d{2}$/;
+      if (!crewIdPattern.test((d.crewId as string).trim())) return null;
+
+      // Sanitize and return only the allowlisted fields, capped at safe lengths
+      const cap = (v: unknown, max: number): string =>
+        typeof v === 'string' ? v.slice(0, max) : '';
+
+      return {
+        type: 'CREW_DISPATCHED',
+        crewId: cap(d.crewId, 20),
+        crewLead: cap(d.crewLead, 60),
+        assetId: cap(d.assetId, 20),
+        assetName: cap(d.assetName, 80),
+        substation: cap(d.substation, 100),
+        sender: cap(d.sender, 80),
+        timestamp: cap(d.timestamp, 20),
+      };
+    };
+
+    const handleIncomingDispatch = (raw: unknown) => {
+      const data = validateDispatchPayload(raw);
+      if (!data) return; // silently drop invalid/unexpected payloads
+
+      playAlertChime();
+      setLiveBroadcastAlert({
+        id: Date.now().toString(),
+        title: `🚨 EMERGENCY WORK ORDER: ${data.crewId}`,
+        message: `${data.sender} dispatched ${data.crewId} (${data.crewLead || 'Lead'}) to ${data.assetName} at ${data.substation || 'Bay'}.\nTarget Incident: ${data.assetId} | Destination Mobile: +91 9408487768`,
+        timestamp: data.timestamp,
+        sender: data.sender,
+      });
+
+      // Sync crew status in this tab
+      setCrews((prev) =>
+        prev.map((c) =>
+          c.id === data.crewId
+            ? {
+                ...c,
+                status: 'Assigned',
+                currentAssignment: `Emergency dispatch to ${data.assetName} (${data.substation || ''})`,
+              }
+            : c
+        )
+      );
+
+      // Also update the target asset with the assigned crew
+      setAssets((prev) =>
+        prev.map((a) =>
+          a.id === data.assetId
+            ? {
+                ...a,
+                assignedCrewId: data.crewId,
+                recommendedAction: `In Progress: ${data.crewId} dispatched to site`,
+              }
+            : a
+        )
+      );
+
+      // Trigger native phone/browser push if enabled
+      triggerPhoneAlert(
+        '9408487768',
+        `🚨 Emergency Dispatch: ${data.crewId}`,
+        `${data.sender} dispatched ${data.crewId} to ${data.assetName}`
+      );
     };
 
     // 1. BroadcastChannel
@@ -247,7 +289,7 @@ export const GridProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const parsed = JSON.parse(e.newValue);
           handleIncomingDispatch(parsed);
         } catch (err) {
-          // ignore
+          // ignore malformed JSON
         }
       }
     };

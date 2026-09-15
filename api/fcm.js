@@ -3,35 +3,38 @@ import { getMessaging } from 'firebase-admin/messaging';
 import fs from 'fs';
 import path from 'path';
 
+/**
+ * Resolves Firebase Admin credentials using the following priority order:
+ *   1. FIREBASE_SERVICE_ACCOUNT environment variable (JSON string) — preferred for Vercel/production.
+ *   2. firebase-service-account.json on the local filesystem — for local dev only (must be .gitignored).
+ *
+ * SECURITY: No credential fallback is permitted. If neither source is present the
+ * handler returns a 503 instead of silently using a hardcoded key.
+ * Rotate credentials at: https://console.firebase.google.com/project/gridguard-ai-730f6/settings/serviceaccounts/adminsdk
+ */
 function getFirebaseCredentials() {
-  // 1. Environment variable as JSON string
+  // 1. Environment variable as JSON string (set FIREBASE_SERVICE_ACCOUNT in Vercel dashboard)
   if (process.env.FIREBASE_SERVICE_ACCOUNT) {
     try {
       return JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
     } catch (e) {
-      console.warn('Failed to parse FIREBASE_SERVICE_ACCOUNT env var', e);
+      console.error('[FCM] FIREBASE_SERVICE_ACCOUNT env var is set but contains invalid JSON:', e.message);
+      return null;
     }
   }
 
-  // 2. Read from filesystem
+  // 2. Local filesystem fallback (firebase-service-account.json must be in .gitignore)
   try {
     const filePath = path.join(process.cwd(), 'firebase-service-account.json');
     if (fs.existsSync(filePath)) {
       return JSON.parse(fs.readFileSync(filePath, 'utf8'));
     }
   } catch (e) {
-    console.warn('Failed to read firebase-service-account.json from filesystem', e);
+    console.error('[FCM] Failed to read firebase-service-account.json:', e.message);
   }
 
-  // 3. Fallback credentials
-  return {
-    type: 'service_account',
-    project_id: 'gridguard-ai-730f6',
-    private_key_id: '8788ce8ba6c0983c4d771fffd9f690832ebed130',
-    private_key:
-      '-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQCw4kPupjTGl7Hf\naVq7hK6nnF6LUVBOPCyGVS43ul++YQPU7EDiM8CYCOSOGxd3PGrHy65R5aP8crxI\nFp0RQaF/FSlG9mRIQmXYVd9m3aRv4Zryak4Xe4vHp+D26nSpPC7cq3/FP2nrt2N8\nYi4dZcdymT5qsgmi1UDRS0ou/I1rOJp9J60A6fFC59tnLeMGSMFTytOa2sq7In4o\nOGPfNzcTC53TGYRs7lCGRRaQc1o6FoeGBVZWpDWyG1YjJ/B0UX/HS2Uq/8aqr5QO\nnifyIzjXf0nrJo7jXgKbx/lN/q8+0giJmuCp4jsmpKdvlm+1/D/rJs4AS3uJ6o/E\nNncVuJe9AgMBAAECggEAFZNj6eZIJbk3LyMwuBLVIwjF14SRoRlh7PjS7GVFbHl0\n+DHhMDZT1bev+U2ArUCnXbuQhdjXCeIM6VYozoQM6O1x3YAMd2vx9FN1Lpz2g9cn\nCU7CO8cMI8xsenHazRHUPYKF0U+M4f26mt929IsHqwjaPjV9S2lrwJvIbrbLoTpQ\nXxSq6sqAAOreYUbUZXOWY1fn1qRJ2X8PsJeMxJoqJGTt+2vLGNayzV1CDIIl4xix\nA6BeK8F0DJpy+gElPRMURzchvadz22ZFOlsMsvgtxY58uiaQZGiY5R4rcrEwavkS\nfjpnLKIB0A7szjyVoHqVmEJspyw+wCOTXhsUjiLQwQKBgQDase5QMB01fMcNxs4T\naRNHhe/UxSZjZXq4RTnJ668r86aeDpKvwxksdbCDU5vKN7A85PwqhNBQ6/a0bW5W\nnL6Jv0ZQZdvRho+gn4txQ9HC5uPQ5Wu3vrUpcQCiOZsewCCKFwcxKETLuMR3CQ4p\nwtCJkoUtzeeSdCxjNdVAbpgAOQKBgQDPDoFaRWLFyLnmiVefka5GiS/B1/E7ye/7\nL45o4riRadkbK0RVDzon+D19FaNqLmHGqjZbJ3Tt4FrUa9+rcsCVgGKPhmYy65D5\nwSx9vdqQVg0Vuj1qviapNEmo58qEpAy3Jwka0VEjyVANpjcxWz32r/4EkrCUFLUo\nuTaqF64LpQKBgCsM3bHRVt6hmnmeyhBOHep1djm3OZBVeKvvjKmwCIKpawIwMjYB\nPOJgpIelnMRY5AuItA8Wp/9WA/GOnSrVnjh1e7z14CjFyV5AKe35AMDSPMRxdRvt\nobHvucU1e9C41273i4XkvG4yCBK6qJwV6oE6Y5cZsl1FGzvIbBtL6gYZAoGANLBn\nQDZp5RSoIb8PWh6zL2XXjkdKLsG7XLsETTJsbyx1P9GpyM9gKC2mT/9Cn1GANhK4\nVEfdHG88DdQJjdJcqW6LJiS4Ovrw4G1EyhaW2KXdHItQ96m9os8Yc2/QfCJWzgCT\n84wSTr36rg5++wNR6EVuqXE+l+ARHXTMMUpnUrUCgYEAiyKHVfP5WCr6kcEWceuq\npGlcF6non5Fv2hkVGujTLqDtuiwxJOkQnxg1iJn4hyiNAkCe5ehKUdurykYbw3Wj\npJqty6Une3LwLH+Kd1jn/et6s+9/Pw7+TS4kT9cOCqDaKHAFRHarxeLvg6ChYUBQ\nmAH+8Tl48jrL7dCDSAEWFiQ=\n-----END PRIVATE KEY-----\n',
-    client_email: 'firebase-adminsdk-fbsvc@gridguard-ai-730f6.iam.gserviceaccount.com',
-  };
+  // No credentials available — fail explicitly rather than fall back to a hardcoded key.
+  return null;
 }
 
 let firebaseApp = null;
@@ -43,6 +46,9 @@ function getAppInstance() {
       firebaseApp = existing[0];
     } else {
       const credentials = getFirebaseCredentials();
+      if (!credentials) {
+        return null;
+      }
       firebaseApp = initializeApp({
         credential: cert(credentials),
       });
@@ -51,14 +57,25 @@ function getAppInstance() {
   return firebaseApp;
 }
 
+// Allowed origins for CORS — extend this list if additional verified front-end
+// domains are added (e.g. preview deployments under *.vercel.app).
+const ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'https://gridguard-ai.vercel.app',
+];
+
 export default async function handler(req, res) {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST');
+  // CORS — explicit origin allowlist instead of wildcard
+  const origin = req.headers['origin'] || '';
+  if (ALLOWED_ORIGINS.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'OPTIONS,POST');
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, authorization'
+    'Content-Type, Authorization'
   );
 
   if (req.method === 'OPTIONS') {
@@ -78,6 +95,14 @@ export default async function handler(req, res) {
     }
 
     const app = getAppInstance();
+    if (!app) {
+      console.error('[FCM] Firebase credentials unavailable. Set FIREBASE_SERVICE_ACCOUNT env var.');
+      return res.status(503).json({
+        success: false,
+        error: 'Firebase credentials not configured. Contact system administrator.',
+        code: 'CREDENTIALS_MISSING',
+      });
+    }
     const messaging = getMessaging(app);
 
     const messagePayload = {

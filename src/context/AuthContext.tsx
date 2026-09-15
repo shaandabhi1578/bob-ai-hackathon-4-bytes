@@ -31,7 +31,7 @@ interface AuthContextType {
   employees: EmployeeRecord[];
   addEmployee: (employee: Omit<EmployeeRecord, 'registeredAt'>) => { success: boolean; message: string };
   deleteEmployee: (id: string) => void;
-  adminPasswordCurrent: string;
+  // adminPasswordCurrent intentionally omitted — never expose credential values in context API
 }
 
 const DEFAULT_EMPLOYEES: EmployeeRecord[] = [
@@ -151,9 +151,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       };
     }
 
-    // Expected password format: <employee_id>_<name>
+    // Expected password format: <employee_id>_<name> — comparison is case-sensitive
     const expectedPassword = `${emp.id}_${emp.name}`;
-    if (password === expectedPassword || password.toLowerCase() === expectedPassword.toLowerCase()) {
+    if (password === expectedPassword) {
       const empUser: AuthUser = {
         username: emp.id,
         name: emp.fullName,
@@ -193,8 +193,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (currentPass !== adminPassword) {
       return { success: false, message: 'Current admin password incorrect.' };
     }
-    if (!newPass || newPass.length < 4) {
-      return { success: false, message: 'New password must be at least 4 characters.' };
+    if (!newPass || newPass.length < 8) {
+      return { success: false, message: 'New password must be at least 8 characters.' };
     }
     setAdminPassword(newPass);
     localStorage.setItem('gridguard_admin_password', newPass);
@@ -241,7 +241,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         employees,
         addEmployee,
         deleteEmployee,
-        adminPasswordCurrent: adminPassword,
       }}
     >
       {children}

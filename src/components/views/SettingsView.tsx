@@ -25,7 +25,6 @@ export const SettingsView: React.FC = () => {
     employees,
     addEmployee,
     deleteEmployee,
-    adminPasswordCurrent,
   } = useAuth();
 
   // Model weights state
@@ -56,6 +55,11 @@ export const SettingsView: React.FC = () => {
   const [isSendingFCMTest, setIsSendingFCMTest] = useState(false);
 
   const handleSendTestFCM = async () => {
+    // RBAC: Only admin role may trigger FCM broadcasts
+    if (user?.role !== 'admin') {
+      showToast('Access Denied', 'FCM broadcast is restricted to admin accounts.', 'critical');
+      return;
+    }
     setIsSendingFCMTest(true);
     setFcmTestResult(null);
     const res = await sendFirebaseOutageAlert({
@@ -241,7 +245,7 @@ export const SettingsView: React.FC = () => {
                 required
               />
               <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.2rem' }}>
-                Active password key: <code style={{ fontFamily: 'var(--font-mono)', color: '#2563eb' }}>{adminPasswordCurrent}</code>
+                Enter your current admin password to authorize the change.
               </div>
             </div>
 
