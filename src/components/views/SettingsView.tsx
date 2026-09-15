@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { validatePasswordStrength } from '../../context/AuthContext';
 import {
   Sliders,
   Save,
@@ -83,7 +84,7 @@ export const SettingsView: React.FC = () => {
 
   const isAdmin = user?.role === 'admin';
 
-  const handlePasswordChange = (e: React.FormEvent) => {
+  const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setPassError('');
     setPassSuccess('');
@@ -93,7 +94,7 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    const res = changeAdminPassword(currentPass, newPass);
+    const res = await changeAdminPassword(currentPass, newPass);
     if (res.success) {
       setPassSuccess(res.message);
       showToast('Admin Password Changed', 'Admin credentials updated successfully.', 'success');
@@ -105,7 +106,7 @@ export const SettingsView: React.FC = () => {
     }
   };
 
-  const handleAddEmployee = (e: React.FormEvent) => {
+  const handleAddEmployee = async (e: React.FormEvent) => {
     e.preventDefault();
     setEmpError('');
     setEmpSuccess('');
@@ -115,7 +116,7 @@ export const SettingsView: React.FC = () => {
       return;
     }
 
-    const res = addEmployee({
+    const res = await addEmployee({
       id: empId,
       name: empLastName,
       fullName: empFullName,
@@ -256,12 +257,32 @@ export const SettingsView: React.FC = () => {
                 </label>
                 <input
                   type="password"
-                  placeholder="Enter new password"
+                  placeholder="Min 8 chars, letter + number"
                   value={newPass}
                   onChange={(e) => setNewPass(e.target.value)}
                   className="form-input"
                   required
                 />
+                {newPass && (() => {
+                  const hasLen    = newPass.length >= 8;
+                  const hasLetter = /[a-zA-Z]/.test(newPass);
+                  const hasDigit  = /[0-9]/.test(newPass);
+                  const hasSpec   = /[^a-zA-Z0-9]/.test(newPass);
+                  const score     = [hasLen, hasLetter, hasDigit, hasSpec].filter(Boolean).length;
+                  const label  = ['', 'Weak', 'Fair', 'Good', 'Strong'][score];
+                  const colors = ['', '#ef4444', '#f59e0b', '#3b82d4', '#16a34a'];
+                  const widths = ['0%', '25%', '50%', '75%', '100%'];
+                  return (
+                    <div style={{ marginTop: '0.3rem' }}>
+                      <div style={{ height: '4px', background: '#e5e7eb', borderRadius: '2px', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: widths[score], background: colors[score], borderRadius: '2px', transition: 'width 0.25s ease' }} />
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: colors[score], marginTop: '0.15rem', fontWeight: 600 }}>
+                        {label && `Strength: ${label}`}
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
 
               <div>

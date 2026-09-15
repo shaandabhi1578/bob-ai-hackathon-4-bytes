@@ -15,7 +15,7 @@
 
 1. **Predict Equipment Failure Before Blackouts:** AI models synthesize SCADA multi-sensor telemetry (temperature ramp, vibration velocity, SF6 gas pressure, oil quality, and winding load) to detect early-stage catastrophic transformer failures 3 to 7 days in advance.
 2. **Dynamic Meteorological Hazard Forecasting:** Integrates real-time meteorological feeds (Open-Meteo API) with interactive weather simulations (severe squalls, extreme heatwaves, monsoon downpours) that dynamically ripple through grid assets to adjust failure risks across Gujarat corridors (Ahmedabad, Gandhinagar, Vadodara, and Sanand).
-3. **Automated Algorithmic Crew Routing & Dispatch:** Computes real-time Haversine proximity routing between 8 specialized field maintenance units and high-risk electrical assets, enforcing strict availability constraints (preventing double-dispatch of active or resting units).
+3. **Automated Algorithmic Crew Routing & Dispatch:** Computes real-time Haversine proximity routing between 21 specialized field maintenance units and high-risk electrical assets, enforcing strict availability constraints (preventing double-dispatch of active or resting units).
 4. **Multi-Channel Emergency Outage Broadcasting:** Dispatches instant outage alerts via Firebase Cloud Messaging (FCM Topic: `gridguard-outages`), paired with browser/mobile push notifications, audible terminal alarms, and WhatsApp/SMS triggers to registered critical contacts.
 5. **Strict Role-Based Access Control (RBAC):**
    - **Chief Dispatcher (Admin):** Full command authority to simulate scenarios, adjust AI model weights, dispatch field crews, and trigger mass outage broadcasts.
@@ -28,7 +28,7 @@
 Developing GridGuard AI leveraged **IBM Bob IDE** as an intelligent development partner:
 
 - **End-to-End Architecture & Full-Stack Scaffolding:** Bob structured the unified React + TypeScript architecture, integrating Leaflet geospatial visualization, complex risk engines, and responsive SCADA panels.
-- **Dynamic Physics & Weather Calculation Engine:** Bob implemented mathematical formulations combining ambient meteorological vectors with SCADA telemetry (`temperature + (windSpeed * 0.1) + (humidity * 0.05)`).
+- **Dynamic Physics & Weather Calculation Engine:** Bob implemented mathematical formulations combining ambient meteorological vectors with SCADA telemetry — the weather risk contribution is computed as `asset.temperature + (region.temperature − 36) × 0.7`, feeding into the composite risk formula `(0.40 × Sensor) + (0.25 × Weather) + (0.20 × History) + (0.15 × Criticality)`.
 - **Cross-Tab & Cross-Device Event Synchronization:** Bob integrated native `BroadcastChannel` and `localStorage` event buses enabling instantaneous multi-tab reflection between Admin and Employee screens.
 - **Clean Production Deployment & Zero-Debt Refactoring:** Automated production builds, Vercel deployments, and strict type checking with zero compiler warnings.
 
@@ -64,3 +64,14 @@ Visit [https://gridguard-app.vercel.app](https://gridguard-app.vercel.app) to ex
 In compliance with the **IBM Bob Hackathon Guide (Pages 18–19)**:
 - Task session reports and consumption summaries are stored in the [`bob_sessions/`](./bob_sessions/) directory.
 - All private API keys and credentials are saved exclusively in ignored environment files (`.env`, `firebase-service-account.json`) and are **not** committed to the public repository.
+
+---
+
+## 🧪 Testing & Security
+
+- **105 automated tests** covering the full risk engine (71 unit tests) and React context integration (34 tests), powered by **Vitest + React Testing Library**.
+- **PBKDF2-SHA-256** (210,000 iterations) password hashing with timing-safe comparison — no plaintext passwords stored anywhere.
+- **5-attempt / 30-second lockout** on all login forms, with live countdown UI.
+- **8-hour session TTL** with automatic expiry and re-authentication prompt.
+- **BroadcastChannel schema validation** prevents malformed cross-tab event injection.
+- **FCM serverless endpoint** secured with explicit CORS origin allowlist; fails closed (503) if credentials are absent.

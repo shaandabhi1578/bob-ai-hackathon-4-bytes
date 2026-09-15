@@ -1,0 +1,9 @@
+/presentation/
+/bob_sessions/
+/docs/
+/demo/
+*.pptx
+*.mp4
+*.zip
+.git
+.github

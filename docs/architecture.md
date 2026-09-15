@@ -86,5 +86,31 @@ graph TD
 ---
 
 ## 4. Security & Compliance
-- **Credential Segregation:** `.env` and `firebase-service-account.json` are excluded via `.gitignore`.
-- **Role-Based Boundaries:** Non-admin accounts are restricted from accessing system settings, modifying model parameters, or initiating mass broadcasts.
+
+### 4.1 Credential Segregation
+- `.env` and `firebase-service-account.json` are excluded via `.gitignore`.
+- The FCM serverless function (`api/fcm.js`) reads `FIREBASE_SERVICE_ACCOUNT` from environment variables only; it returns HTTP 503 if the variable is absent rather than falling back to any hardcoded value.
+- The FCM endpoint enforces an explicit `ALLOWED_ORIGINS` allowlist (production + localhost) instead of a wildcard `Access-Control-Allow-Origin: *`.
+
+### 4.2 Authentication — PBKDF2-SHA-256
+All user credentials are protected by a hardened authentication layer implemented in [`src/utils/crypto.ts`](../src/utils/crypto.ts) and [`src/context/AuthContext.tsx`](../src/context/AuthContext.tsx):
+
+| Property | Value |
+|---|---|
+| **Hash algorithm** | PBKDF2-SHA-256 via Web Crypto API (`crypto.subtle`) |
+| **Iterations** | 210,000 (OWASP 2023 minimum for PBKDF2-SHA-256) |
+| **Salt** | 16-byte cryptographically random salt per credential, stored with hash |
+| **Comparison** | Timing-safe (constant 300 ms floor to prevent side-channel timing attacks) |
+| **Storage** | `localStorage` key holds `salt:hash` hex pair — no plaintext ever written |
+| **Migration** | On first login, any legacy plaintext password is silently upgraded to PBKDF2 |
+
+### 4.3 Session Management & Brute-Force Protection
+- **8-hour session TTL:** Stored session timestamps are checked on every `AuthContext` mount; expired sessions are cleared and the user is prompted to re-authenticate.
+- **5-attempt / 30-second lockout:** After five consecutive failed login attempts the account is locked for 30 seconds. The UI displays a live countdown in the [`LoginModal`](../src/components/auth/LoginModal.tsx).
+- **User enumeration prevention:** Invalid-username and invalid-password paths both delay for the full PBKDF2 duration before returning an error, making them indistinguishable to an attacker.
+
+### 4.4 Role-Based Boundaries
+Non-admin accounts are restricted from accessing system settings, modifying model parameters, or initiating mass broadcasts. Employee login uses strict string equality (no case-folding) to prevent credential bypass.
+
+### 4.5 BroadcastChannel Event Hardening
+All cross-tab messages received on `BroadcastChannel('gridguard_realtime_events')` are validated against a strict schema before any state mutation. Unknown event types and payloads that fail regex or type guards are silently dropped, preventing cross-tab injection attacks.
