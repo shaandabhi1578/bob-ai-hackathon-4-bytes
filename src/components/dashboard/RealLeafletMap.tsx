@@ -13,10 +13,12 @@ import {
   CheckCircle2,
   Maximize2,
   Minimize2,
+  Wrench,
 } from 'lucide-react';
 import { useGrid } from '../../context/GridContext';
 import { GridAsset, Crew } from '../../types';
 import { getTileLayers } from '../../services/mapService';
+import { RepairReportModal } from '../common/RepairReportModal';
 
 export const RealLeafletMap: React.FC = () => {
   const {
@@ -30,6 +32,8 @@ export const RealLeafletMap: React.FC = () => {
     assignCrew,
     unassignAssetCrew,
     activeWeatherRegion,
+    infrastructurePOIs,
+    getPOIUpstreamRisk,
   } = useGrid();
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -40,7 +44,12 @@ export const RealLeafletMap: React.FC = () => {
     crewsGroup: L.LayerGroup;
     weatherGroup: L.LayerGroup;
     routeGroup: L.LayerGroup;
+    infrastructureGroup: L.LayerGroup;
   } | null>(null);
+
+  const [repairModalAsset, setRepairModalAsset] = useState<GridAsset | null>(null);
+  const [showInfrastructure, setShowInfrastructure] = useState(true);
+  const [poiCategory, setPoiCategory] = useState<'ALL' | 'Healthcare' | 'Education' | 'Emergency'>('ALL');
 
   const availableTileLayers = getTileLayers();
   const [selectedLayerId, setSelectedLayerId] = useState(availableTileLayers[0]?.id || 'maptiler-dark');
@@ -92,6 +101,7 @@ export const RealLeafletMap: React.FC = () => {
     const weatherGroup = L.layerGroup().addTo(map);
     const routeGroup = L.layerGroup().addTo(map);
     const crewsGroup = L.layerGroup().addTo(map);
+    const infrastructureGroup = L.layerGroup().addTo(map);
     const markersGroup = L.layerGroup().addTo(map);
 
     layersRef.current = {
@@ -100,6 +110,7 @@ export const RealLeafletMap: React.FC = () => {
       crewsGroup,
       weatherGroup,
       routeGroup,
+      infrastructureGroup,
     };
 
     mapInstanceRef.current = map;
@@ -142,6 +153,7 @@ export const RealLeafletMap: React.FC = () => {
     layers.crewsGroup.clearLayers();
     layers.weatherGroup.clearLayers();
     layers.routeGroup.clearLayers();
+    layers.infrastructureGroup.clearLayers();
 
     // 2. Weather Storm Hazard Polygon Overlay dynamically linked to activeWeatherRegion
     if (showWeather) {
@@ -367,6 +379,109 @@ export const RealLeafletMap: React.FC = () => {
 
       layers.markersGroup.addLayer(marker);
     });
+
+    // 7. Critical Civil Infrastructure POIs (Hospitals, Schools, Fire, Water)
+    if (showInfrastructure) {
+      const filteredPOIs = infrastructurePOIs.filter((p) => {
+        if (poiCategory === 'ALL') return true;
+        return p.category === poiCategory;
+      });
+
+      filteredPOIs.forEach((poi) => {
+        const upstreamInfo = getPOIUpstreamRisk(poi);
+        const isHospital = poi.type === 'Hospital';
+        const isEdu = poi.type === 'School' || poi.type === 'University';
+        const isFire = poi.type === 'FireStation';
+
+        const bg = isHospital ? '#dc2626' : isEdu ? '#2563eb' : isFire ? '#ea580c' : '#0891b2';
+        const iconEmoji = isHospital ? '🏥' : isEdu ? '🎓' : isFire ? '🚒' : '💧';
+
+        const poiHtml = `
+          <div style="position: relative; width: 28px; height: 28px; cursor: pointer;">
+            ${
+              upstreamInfo.isAtRisk
+                ? `<div style="
+                    position: absolute;
+                    inset: -5px;
+                    border-radius: 50%;
+                    background: rgba(220, 38, 38, 0.35);
+                    animation: scada-pulse 2s infinite ease-in-out;
+                  "></div>`
+                : ''
+            }
+            <div style="
+              position: absolute;
+              inset: 0;
+              border-radius: 6px;
+              background: ${bg};
+              border: 2px solid #ffffff;
+              box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 14px;
+            ">
+              ${iconEmoji}
+            </div>
+          </div>
+        `;
+
+        const poiIcon = L.divIcon({
+          html: poiHtml,
+          className: 'custom-poi-marker',
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        });
+
+        const marker = L.marker([poi.coordinates.lat, poi.coordinates.lng], {
+          icon: poiIcon,
+          zIndexOffset: 350,
+        }).bindPopup(`
+          <div style="font-family: sans-serif; min-width: 260px; padding: 4px; font-size: 12px; color: #0f172a;">
+            <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; margin-bottom: 6px;">
+              <strong>${iconEmoji} ${poi.name}</strong>
+              <span style="font-size: 10px; background: ${bg}18; color: ${bg}; border: 1px solid ${bg}40; padding: 1px 5px; border-radius: 3px; font-weight: 700;">
+                ${poi.category}
+              </span>
+            </div>
+            <div style="color: #475569; font-size: 11px; margin-bottom: 4px;">
+              📍 ${poi.address}
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 11px; margin-bottom: 6px; background: #f8fafc; padding: 6px; border-radius: 4px;">
+              <div><strong>Capacity:</strong> ${poi.capacity}</div>
+              <div><strong>Priority:</strong> ${poi.priorityLevel.split(' - ')[0]}</div>
+              <div style="grid-column: span 2;"><strong>Backup Power:</strong> ${poi.backupGenerator}</div>
+              <div style="grid-column: span 2;"><strong>Contact:</strong> ${poi.contactPerson} (${poi.contactPhone})</div>
+            </div>
+            <div style="font-size: 11px; border-top: 1px solid #f1f5f9; padding-top: 4px;">
+              <strong>Connected Grid Substation:</strong> ${poi.connectedSubstationName}<br/>
+              <strong>Feeder Line:</strong> ${poi.feederId}
+            </div>
+            <div style="margin-top: 6px; font-size: 11px; padding: 5px 8px; border-radius: 4px; ${
+              upstreamInfo.isAtRisk
+                ? 'background: #fef2f2; border: 1px solid #fecaca; color: #991b1b;'
+                : 'background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534;'
+            }">
+              ${
+                upstreamInfo.isAtRisk
+                  ? `⚠️ <strong>UPSTREAM GRID THREAT:</strong> ${upstreamInfo.upstreamSubstation} is operating at ${upstreamInfo.riskScore}% risk! Secondary feeder line & backup generators primed.`
+                  : `✓ <strong>GRID NOMINAL:</strong> Primary feeder power stable via ${upstreamInfo.upstreamSubstation}.`
+              }
+            </div>
+          </div>
+        `);
+
+        marker.bindTooltip(
+          `<div style="font-family:sans-serif;font-size:11px;font-weight:700;">
+            ${iconEmoji} ${poi.name} (${poi.category})<br/>
+            ${upstreamInfo.isAtRisk ? '⚠️ Upstream Grid Warning' : '✓ Grid Power Stable'}
+          </div>`,
+          { direction: 'top', offset: [0, -12] }
+        );
+
+        layers.infrastructureGroup.addLayer(marker);
+      });
+    }
   }, [
     assets,
     selectedAssetId,
@@ -375,8 +490,12 @@ export const RealLeafletMap: React.FC = () => {
     showCrews,
     showWeather,
     showRoute,
+    showInfrastructure,
+    poiCategory,
     filterStatus,
     nearestCrewToSelected,
+    infrastructurePOIs,
+    getPOIUpstreamRisk,
   ]);
 
   // Center on selected asset smoothly
@@ -427,8 +546,8 @@ export const RealLeafletMap: React.FC = () => {
               fontWeight: 600,
             }}
           >
-            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
-            MapTiler API Active (HyXVq...58T)
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block' }} />
+            Live Geospatial SCADA Active
           </span>
           <span style={{ fontSize: '0.72rem', color: '#64748b' }}>
             Ahmedabad & Gujarat 400kV / 220kV Telemetry
@@ -534,6 +653,37 @@ export const RealLeafletMap: React.FC = () => {
             <Layers size={12} />
             <span>Lines</span>
           </button>
+
+          {/* Civil POIs toggle & filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <button
+              onClick={() => setShowInfrastructure(!showInfrastructure)}
+              className="btn-secondary btn-sm"
+              style={{
+                background: showInfrastructure ? '#eff6ff' : '#ffffff',
+                borderColor: showInfrastructure ? '#93c5fd' : '#cbd5e1',
+                color: showInfrastructure ? '#1e40af' : '#475569',
+                fontWeight: showInfrastructure ? 600 : 400,
+              }}
+              title="Toggle Critical Public Infrastructure (Hospitals, Schools, Water Works, Fire Stations)"
+            >
+              <span>🏥 Civil POIs</span>
+            </button>
+            {showInfrastructure && (
+              <select
+                value={poiCategory}
+                onChange={(e) => setPoiCategory(e.target.value as any)}
+                className="form-select"
+                style={{ width: '115px', height: '28px', fontSize: '0.72rem', padding: '0.1rem 0.35rem' }}
+                title="Filter Infrastructure Category"
+              >
+                <option value="ALL">All Categories</option>
+                <option value="Healthcare">Hospitals</option>
+                <option value="Education">Colleges/Univ</option>
+                <option value="Emergency">Emergency</option>
+              </select>
+            )}
+          </div>
 
           {/* Fullscreen toggle button */}
           <button
@@ -702,6 +852,23 @@ export const RealLeafletMap: React.FC = () => {
                   <span>Sensors</span>
                 </button>
 
+                <button
+                  onClick={() => setRepairModalAsset(selectedAsset)}
+                  className="btn-secondary btn-sm"
+                  style={{
+                    flex: 1,
+                    justifyContent: 'center',
+                    background: '#f0fdf4',
+                    borderColor: '#bbf7d0',
+                    color: '#15803d',
+                    fontWeight: 600,
+                  }}
+                  title="Submit post-maintenance diagnostic report & restore health"
+                >
+                  <Wrench size={12} />
+                  <span>Repair</span>
+                </button>
+
                 {selectedAsset.assignedCrewId ? (
                   <button
                     onClick={() => unassignAssetCrew(selectedAsset.id)}
@@ -716,7 +883,7 @@ export const RealLeafletMap: React.FC = () => {
                     }}
                     title={`Release unit ${selectedAsset.assignedCrewId} back to available status`}
                   >
-                    <span>Release {selectedAsset.assignedCrewId}</span>
+                    <span>Release</span>
                   </button>
                 ) : nearestCrewToSelected.crew ? (
                   <button
@@ -734,7 +901,7 @@ export const RealLeafletMap: React.FC = () => {
                     }}
                     title={`Dispatch nearest unit ${nearestCrewToSelected.crew.id}`}
                   >
-                    <span>Dispatch {nearestCrewToSelected.crew.id}</span>
+                    <span>Dispatch</span>
                   </button>
                 ) : (
                   <button
@@ -749,7 +916,7 @@ export const RealLeafletMap: React.FC = () => {
                       cursor: 'not-allowed',
                     }}
                   >
-                    <span>No Crews Available</span>
+                    <span>No Crew</span>
                   </button>
                 )}
               </div>
@@ -757,6 +924,14 @@ export const RealLeafletMap: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Repair Report Modal */}
+      {repairModalAsset && (
+        <RepairReportModal
+          asset={repairModalAsset}
+          onClose={() => setRepairModalAsset(null)}
+        />
+      )}
     </div>
   );
 };

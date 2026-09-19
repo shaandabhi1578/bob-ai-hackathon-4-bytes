@@ -6,11 +6,15 @@ import {
   OutageRecipient,
   OutageNotification,
   SimulationParams,
+  RepairReport,
+  CriticalInfrastructurePOI,
+  AdminRiskAlert,
 } from '../types';
 import { INITIAL_ASSETS } from '../data/assets';
 import { INITIAL_CREWS } from '../data/crews';
 import { WEATHER_REGIONS } from '../data/weather';
 import { INITIAL_RECIPIENTS, INITIAL_NOTIFICATIONS } from '../data/notifications';
+import { CRITICAL_INFRASTRUCTURE_POIS } from '../data/infrastructure';
 import {
   calculateRiskFromParams,
   findNearestAvailableCrew,
@@ -61,6 +65,26 @@ interface GridContextType {
   selectedAsset: GridAsset;
   quickInspectAsset: GridAsset | null;
   setQuickInspectAsset: (asset: GridAsset | null) => void;
+  addAsset: (asset: Omit<GridAsset, 'id'> & { id?: string }) => void;
+  removeAsset: (assetId: string) => void;
+  updateAsset: (assetId: string, updates: Partial<GridAsset>) => void;
+  repairAsset: (assetId: string, report: Omit<RepairReport, 'id' | 'repairedAt'>) => void;
+  resetAssetsToDefault: () => void;
+  commitSimulationToAsset: (assetId: string) => void;
+  repairLogs: RepairReport[];
+
+  // Critical Civil Infrastructure POIs (Hospitals, Schools, etc.)
+  infrastructurePOIs: CriticalInfrastructurePOI[];
+  getPOIUpstreamRisk: (poi: CriticalInfrastructurePOI) => {
+    isAtRisk: boolean;
+    riskLevel: 'Critical' | 'Warning' | 'Healthy';
+    riskScore: number;
+    upstreamSubstation: string;
+  };
+
+  // Admin Risk Alerts
+  adminAlerts: AdminRiskAlert[];
+  dismissAdminAlert: (alertId: string) => void;
 
   // Crews
   crews: Crew[];
@@ -127,9 +151,55 @@ const GridContext = createContext<GridContextType | undefined>(undefined);
 
 export const GridProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [activeTab, setActiveTab] = useState<NavigationTab>('dashboard');
-  const [assets, setAssets] = useState<GridAsset[]>(INITIAL_ASSETS);
+  const [assets, setAssets] = useState<GridAsset[]>(() => {
+    try {
+      const saved = localStorage.getItem('gridguard_assets');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch {
+      // ignore
+    }
+    return INITIAL_ASSETS;
+  });
   const [selectedAssetId, setSelectedAssetId] = useState<string>('T-104');
   const [quickInspectAsset, setQuickInspectAsset] = useState<GridAsset | null>(null);
+
+  const [repairLogs, setRepairLogs] = useState<RepairReport[]>(() => {
+    try {
+      const saved = localStorage.getItem('gridguard_repair_logs');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch {
+      // ignore
+    }
+    return [];
+  });
+
+  const [infrastructurePOIs] = useState<CriticalInfrastructurePOI[]>(CRITICAL_INFRASTRUCTURE_POIS);
+  const [dismissedAlertIds, setDismissedAlertIds] = useState<string[]>([]);
+
+  // Persist assets to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('gridguard_assets', JSON.stringify(assets));
+    } catch {
+      // ignore
+    }
+  }, [assets]);
+
+  // Persist repairLogs to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('gridguard_repair_logs', JSON.stringify(repairLogs));
+    } catch {
+      // ignore
+    }
+  }, [repairLogs]);
 
   const [crews, setCrews] = useState<Crew[]>(INITIAL_CREWS);
   const [weatherRegions, setWeatherRegions] = useState<WeatherRegion[]>(WEATHER_REGIONS);
@@ -777,6 +847,305 @@ export const GridProvider: React.FC<{ children: React.ReactNode }> = ({ children
     unassignCrew(targetAsset.assignedCrewId);
   };
 
+  // ── Asset Inventory CRUD ──────────────────────────────────────────
+  const addAsset = (assetData: Omit<GridAsset, 'id'> & { id?: string }) => {
+    const rawId = assetData.id && assetData.id.trim()
+      ? assetData.id.trim().toUpperCase()
+      : `T-${Math.floor(300 + Math.random() * 699)}`;
+
+    if (assets.some((a) => a.id === rawId)) {
+      showToast('Duplicate Asset ID', `Asset ID "${rawId}" already exists in inventory. Please use a unique identifier.`, 'warning');
+      return;
+    }
+
+    const health = assetData.healthScore ?? 85;
+    const failureRisk = assetData.failureRisk ?? (health < 50 ? 80 : health < 75 ? 55 : 15);
+    const status = assetData.status || (health < 50 ? 'Critical' : health < 75 ? 'Warning' : 'Healthy');
+
+    const newAsset: GridAsset = {
+      ...assetData,
+      id: rawId,
+      name: assetData.name || `Transformer ${rawId}`,
+      type: assetData.type || 'Transformer',
+      location: assetData.location || 'Ahmedabad West',
+      substation: assetData.substation || 'Substation S-17 (Sabarmati 400kV)',
+      coordinates: assetData.coordinates || {
+        lat: 23.05 + (Math.random() - 0.5) * 0.08,
+        lng: 72.56 + (Math.random() - 0.5) * 0.08,
+        x: 50,
+        y: 50,
+      },
+      healthScore: health,
+      failureRisk,
+      status,
+      gridImpactCustomers: assetData.gridImpactCustomers || 12500,
+      predictedFailureWindow: assetData.predictedFailureWindow || (status === 'Critical' ? 'Next 3–5 days' : 'Nominal (> 90 days)'),
+      recommendedAction: assetData.recommendedAction || (status === 'Critical' ? 'Immediate field inspection and thermal scan' : 'Continuous SCADA monitoring'),
+      priority: assetData.priority || (status === 'Critical' ? 'P1 - Critical' : status === 'Warning' ? 'P2 - High' : 'P4 - Routine'),
+      temperature: assetData.temperature ?? (status === 'Critical' ? 89 : 64),
+      vibration: assetData.vibration ?? (status === 'Critical' ? 4.5 : 1.4),
+      oilQuality: assetData.oilQuality || (status === 'Critical' ? 'Poor' : 'Good'),
+      oilTemperature: assetData.oilTemperature ?? 62,
+      partialDischarge: assetData.partialDischarge ?? (status === 'Critical' ? 310 : 45),
+      loadPercentage: assetData.loadPercentage ?? 72,
+      voltageKV: assetData.voltageKV ?? 220,
+      currentA: assetData.currentA ?? 550,
+      lastMaintenance: assetData.lastMaintenance || 'Commissioned today',
+      weatherExposure: assetData.weatherExposure || 'Medium',
+      sensorRisk: assetData.sensorRisk ?? (status === 'Critical' ? 75 : 15),
+      weatherRisk: assetData.weatherRisk ?? 20,
+      historicalRisk: assetData.historicalRisk ?? 25,
+      confidence: assetData.confidence ?? 88,
+      reasons: assetData.reasons && assetData.reasons.length > 0 ? assetData.reasons : [
+        status === 'Critical'
+          ? 'Thermal hot-spot detected on commissioning baseline'
+          : 'Newly added into Gujarat transmission grid inventory',
+      ],
+      commissionYear: assetData.commissionYear || 2026,
+      assignedCrewId: null,
+    };
+
+    setAssets((prev) => [newAsset, ...prev]);
+    setSelectedAssetId(newAsset.id);
+
+    showToast(
+      'Asset Added to Inventory',
+      `${newAsset.name} (${newAsset.id}) registered into Gujarat SCADA fleet inventory.`,
+      'success'
+    );
+
+    // If registered as at-risk, trigger alert immediately!
+    if (newAsset.status === 'Critical' || newAsset.failureRisk >= 70) {
+      playAlertChime();
+      triggerPhoneAlert(
+        '9408487768',
+        `🚨 High-Risk Asset Added: ${newAsset.id}`,
+        `${newAsset.name} at ${newAsset.substation} registered with ${newAsset.failureRisk}% failure risk.`
+      );
+    }
+  };
+
+  const removeAsset = (assetId: string) => {
+    const target = assets.find((a) => a.id === assetId);
+    if (!target) return;
+
+    if (target.assignedCrewId) {
+      unassignCrew(target.assignedCrewId);
+    }
+
+    setAssets((prev) => prev.filter((a) => a.id !== assetId));
+
+    if (selectedAssetId === assetId) {
+      const remaining = assets.filter((a) => a.id !== assetId);
+      if (remaining.length > 0) {
+        setSelectedAssetId(remaining[0].id);
+      }
+    }
+
+    showToast(
+      'Asset Decommissioned',
+      `${target.name} (${target.id}) removed from grid inventory and SCADA telemetry.`,
+      'info'
+    );
+  };
+
+  const updateAsset = (assetId: string, updates: Partial<GridAsset>) => {
+    setAssets((prev) =>
+      prev.map((a) => (a.id === assetId ? { ...a, ...updates } : a))
+    );
+  };
+
+  const resetAssetsToDefault = () => {
+    setAssets(INITIAL_ASSETS);
+    setSelectedAssetId('T-104');
+    try {
+      localStorage.removeItem('gridguard_assets');
+    } catch {
+      // ignore
+    }
+    showToast('Fleet Restored', 'Restored default Gujarat SCADA grid assets.', 'info');
+  };
+
+  // ── Employee Repair Workflow ──────────────────────────────────────
+  const repairAsset = (assetId: string, reportData: Omit<RepairReport, 'id' | 'repairedAt'>) => {
+    const target = assets.find((a) => a.id === assetId);
+    if (!target) return;
+
+    const now = new Date();
+    const timestamp = `${now.toISOString().slice(0, 10)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const reportId = `REP-${Date.now().toString().slice(-6)}`;
+
+    const fullReport: RepairReport = {
+      ...reportData,
+      id: reportId,
+      assetId: target.id,
+      assetName: target.name,
+      repairedAt: timestamp,
+    };
+
+    // Update asset metrics and status
+    setAssets((prev) =>
+      prev.map((a) => {
+        if (a.id !== assetId) return a;
+        return {
+          ...a,
+          healthScore: reportData.metricsAfter.healthScore,
+          failureRisk: reportData.metricsAfter.failureRisk,
+          status: reportData.statusAfter || 'Healthy',
+          priority: 'P4 - Routine',
+          temperature: reportData.metricsAfter.temperature,
+          vibration: reportData.metricsAfter.vibration,
+          oilQuality: reportData.metricsAfter.oilQuality,
+          partialDischarge: reportData.metricsAfter.partialDischarge,
+          lastMaintenance: 'Today (Field Overhaul Complete)',
+          predictedFailureWindow: 'Normal Operation (> 180 days)',
+          recommendedAction: 'Routine monitoring; comprehensive field overhaul completed',
+          assignedCrewId: null,
+          reasons: [
+            `Overhaul completed by ${reportData.technicianName} on ${timestamp}`,
+            `Post-service telemetry: ${reportData.metricsAfter.temperature}°C, ${reportData.metricsAfter.vibration} mm/s, Oil: ${reportData.metricsAfter.oilQuality}`,
+            ...reportData.actionsTaken.map((act) => `Completed: ${act}`),
+          ],
+        };
+      })
+    );
+
+    // Free assigned crew if one was working on it
+    setCrews((prev) =>
+      prev.map((c) => {
+        if (c.id === target.assignedCrewId || (reportData.crewId && c.id === reportData.crewId)) {
+          return {
+            ...c,
+            status: 'Available' as const,
+            currentAssignment: null,
+            lastCompletedWork: `Completed overhaul on ${target.name} (${target.id})`,
+          };
+        }
+        return c;
+      })
+    );
+
+    setRepairLogs((prev) => [fullReport, ...prev]);
+    playAlertChime();
+
+    showToast(
+      'Repair Logged Successfully',
+      `${target.name} health restored to ${reportData.metricsAfter.healthScore}% (${reportData.statusAfter || 'Healthy'}). Dispatched units returned to standby.`,
+      'success'
+    );
+
+    // Broadcast across tabs
+    try {
+      const channel = new BroadcastChannel('gridguard_realtime_events');
+      channel.postMessage({
+        type: 'ASSET_REPAIRED',
+        assetId: target.id,
+        assetName: target.name,
+        healthScore: reportData.metricsAfter.healthScore,
+        technician: reportData.technicianName,
+        timestamp,
+      });
+      channel.close();
+    } catch {
+      // ignore
+    }
+  };
+
+  // ── Commit SCADA Simulation to Asset ──────────────────────────────
+  const commitSimulationToAsset = (assetId: string) => {
+    const target = assets.find((a) => a.id === assetId);
+    if (!target) return;
+
+    const result = calculateRiskFromParams(simulationParams, target);
+
+    const computedHealth = Math.max(5, 100 - result.combinedRisk);
+    setAssets((prev) =>
+      prev.map((a) => {
+        if (a.id !== assetId) return a;
+        return {
+          ...a,
+          temperature: simulationParams.temperature,
+          vibration: simulationParams.vibration,
+          oilQuality: simulationParams.oilQuality,
+          loadPercentage: simulationParams.load,
+          failureRisk: result.combinedRisk,
+          healthScore: computedHealth,
+          status: result.status,
+          predictedFailureWindow: result.predictedWindow,
+          recommendedAction: result.recommendedAction,
+          priority: result.priority,
+          reasons: result.reasons,
+        };
+      })
+    );
+
+    showToast(
+      'SCADA Telemetry Committed',
+      `Applied simulation parameters to ${target.name}. New failure risk: ${result.combinedRisk}% (${result.status}).`,
+      result.status === 'Critical' ? 'critical' : 'success'
+    );
+
+    if (result.status === 'Critical') {
+      playAlertChime();
+    }
+  };
+
+  // ── Critical Infrastructure Upstream Risk ─────────────────────────
+  const getPOIUpstreamRisk = (poi: CriticalInfrastructurePOI) => {
+    const relatedAssets = assets.filter(
+      (a) => a.substation.includes(poi.connectedSubstationId) || poi.connectedSubstationName.includes(a.substation)
+    );
+
+    if (relatedAssets.length === 0) {
+      return {
+        isAtRisk: false,
+        riskLevel: 'Healthy' as const,
+        riskScore: 10,
+        upstreamSubstation: poi.connectedSubstationName,
+      };
+    }
+
+    const maxRiskAsset = relatedAssets.reduce((max, a) => (a.failureRisk > max.failureRisk ? a : max), relatedAssets[0]);
+    const isAtRisk = maxRiskAsset.failureRisk >= 60 || maxRiskAsset.status !== 'Healthy';
+
+    return {
+      isAtRisk,
+      riskLevel: maxRiskAsset.status,
+      riskScore: maxRiskAsset.failureRisk,
+      upstreamSubstation: `${maxRiskAsset.name} (${maxRiskAsset.substation})`,
+    };
+  };
+
+  // ── Admin Risk Alerts ─────────────────────────────────────────────
+  const adminAlerts = useMemo<AdminRiskAlert[]>(() => {
+    return assets
+      .filter((a) => (a.status !== 'Healthy' || a.failureRisk >= 60) && !dismissedAlertIds.includes(`ALERT-${a.id}`))
+      .sort((a, b) => b.failureRisk - a.failureRisk)
+      .map((a) => {
+        const nearby = infrastructurePOIs
+          .filter((p) => a.substation.includes(p.connectedSubstationId) || p.connectedSubstationName.includes(a.substation))
+          .map((p) => p.name);
+
+        return {
+          id: `ALERT-${a.id}`,
+          assetId: a.id,
+          assetName: a.name,
+          substation: a.substation,
+          riskScore: a.failureRisk,
+          status: a.status,
+          primaryReason: a.reasons[0] || `High operating temperature (${a.temperature}°C) & vibration (${a.vibration} mm/s)`,
+          timestamp: 'Live SCADA Stream',
+          acknowledged: false,
+          affectedCustomers: a.gridImpactCustomers,
+          nearbyInfrastructure: nearby,
+        };
+      });
+  }, [assets, infrastructurePOIs, dismissedAlertIds]);
+
+  const dismissAdminAlert = (alertId: string) => {
+    setDismissedAlertIds((prev) => [...prev, alertId]);
+  };
+
   // Add Outage Recipient
   const addRecipient = (recipient: Omit<OutageRecipient, 'id' | 'verified'>) => {
     const newRec: OutageRecipient = {
@@ -915,6 +1284,17 @@ export const GridProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectedAsset,
         quickInspectAsset,
         setQuickInspectAsset,
+        addAsset,
+        removeAsset,
+        updateAsset,
+        repairAsset,
+        resetAssetsToDefault,
+        commitSimulationToAsset,
+        repairLogs,
+        infrastructurePOIs,
+        getPOIUpstreamRisk,
+        adminAlerts,
+        dismissAdminAlert,
         crews,
         assignCrew,
         unassignCrew,

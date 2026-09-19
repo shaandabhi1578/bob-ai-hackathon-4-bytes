@@ -148,3 +148,71 @@ export interface SimulationParams {
   rainProbability: number; // 0 to 100 %
   lightningRisk: 'Low' | 'Moderate' | 'High' | 'Severe';
 }
+
+export interface RepairReport {
+  id: string;
+  assetId: string;
+  assetName: string;
+  technicianName: string;
+  technicianRole?: string;
+  technicianPhone?: string;
+  crewId?: string;
+  repairedAt: string;
+  workSummary: string;
+  actionsTaken: string[];
+  partsReplaced: string[];
+  metricsBefore: {
+    healthScore: number;
+    failureRisk: number;
+    temperature: number;
+    vibration: number;
+    oilQuality: string;
+    partialDischarge: number;
+  };
+  metricsAfter: {
+    healthScore: number;
+    failureRisk: number;
+    temperature: number;
+    vibration: number;
+    oilQuality: 'Good' | 'Moderate' | 'Poor' | 'Critical';
+    partialDischarge: number;
+    loadPercentage?: number;
+  };
+  statusAfter: AssetStatus;
+  notes?: string;
+}
+
+export type InfrastructureType = 'Hospital' | 'School' | 'University' | 'FireStation' | 'WaterUtility';
+
+export interface CriticalInfrastructurePOI {
+  id: string;
+  name: string;
+  type: InfrastructureType;
+  category: 'Healthcare' | 'Education' | 'Emergency' | 'Public Utility';
+  coordinates: { lat: number; lng: number };
+  zone: string;
+  address: string;
+  feederId: string;
+  connectedSubstationId: string;
+  connectedSubstationName: string;
+  priorityLevel: 'Tier 1 - Critical Life Support' | 'Tier 2 - Essential Public Facility' | 'Tier 3 - Standard Public Sector';
+  capacity: string;
+  backupGenerator: string;
+  contactPerson: string;
+  contactPhone: string;
+}
+
+export interface AdminRiskAlert {
+  id: string;
+  assetId: string;
+  assetName: string;
+  substation: string;
+  riskScore: number;
+  status: AssetStatus;
+  primaryReason: string;
+  timestamp: string;
+  acknowledged: boolean;
+  affectedCustomers: number;
+  nearbyInfrastructure?: string[];
+}
+

@@ -5,27 +5,27 @@ import { useGrid } from '../../context/GridContext';
 export const CriticalAlertsPanel: React.FC = () => {
   const { assets, setSelectedAssetId, setActiveTab } = useGrid();
 
-  // Top 3 most important alerts
-  const alertAssets = [
-    {
-      asset: assets.find((a) => a.id === 'T-104') || assets[0],
-      iconColor: '#dc2626',
-      badgeClass: 'badge-critical',
-      shortReason: '87% failure probability (Thermal ramp to 91°C + approaching storm)',
-    },
-    {
-      asset: assets.find((a) => a.id === 'S-17') || assets[2],
-      iconColor: '#d97706',
-      badgeClass: 'badge-warning',
-      shortReason: 'High weather exposure (48 km/h squalls + direct lightning track)',
-    },
-    {
-      asset: assets.find((a) => a.id === 'T-208') || assets[1],
-      iconColor: '#dc2626',
-      badgeClass: 'badge-critical',
-      shortReason: 'Abnormal vibration pattern (5.2 mm/s harmonic peak load stress)',
-    },
-  ];
+  // Dynamically compute the top 3 highest-risk assets from live fleet state
+  const sortedAssets = [...assets].sort((a, b) => b.failureRisk - a.failureRisk);
+  const alertAssets = sortedAssets.slice(0, 3).map((asset) => {
+    let reason = asset.recommendedAction;
+    if (asset.temperature > 80) {
+      reason = `Thermal ramp (${asset.temperature}°C) exceeding safety margins`;
+    } else if (asset.vibration > 4.0) {
+      reason = `Abnormal mechanical vibration (${asset.vibration} mm/s)`;
+    } else if (asset.oilQuality === 'Poor' || asset.oilQuality === 'Critical') {
+      reason = `Degraded dielectric oil quality (${asset.oilQuality})`;
+    } else if (asset.failureRisk < 40) {
+      reason = `Normal telemetry readings across all SCADA sensor channels`;
+    }
+
+    return {
+      asset,
+      iconColor: asset.failureRisk >= 80 ? '#dc2626' : asset.failureRisk >= 50 ? '#d97706' : '#16a34a',
+      badgeClass: asset.status === 'Critical' ? 'badge-critical' : asset.status === 'Warning' ? 'badge-warning' : 'badge-healthy',
+      shortReason: `${asset.failureRisk}% failure probability (${reason})`,
+    };
+  });
 
   return (
     <div className="control-card" style={{ marginTop: '1.25rem' }}>

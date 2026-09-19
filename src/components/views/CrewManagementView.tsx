@@ -10,10 +10,13 @@ import {
   AlertOctagon,
   Phone,
   UserCheck,
+  Wrench,
 } from 'lucide-react';
 import { useGrid } from '../../context/GridContext';
 import { useAuth } from '../../context/AuthContext';
 import { calculateDistanceKm } from '../../utils/riskEngine';
+import { RepairReportModal } from '../common/RepairReportModal';
+import { GridAsset } from '../../types';
 
 export const CrewManagementView: React.FC = () => {
   const {
@@ -34,6 +37,7 @@ export const CrewManagementView: React.FC = () => {
   const employeeCrewId = user?.employeeDetails?.assignedUnitId || (isEmployee ? 'Crew 04' : undefined);
   const employeeCrew = employeeCrewId ? crews.find((c) => c.id === employeeCrewId) : null;
 
+  const [repairAssetTarget, setRepairAssetTarget] = useState<GridAsset | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const assignedCrewsCount = crews.filter((c) => c.status === 'Assigned').length;
@@ -242,6 +246,31 @@ export const CrewManagementView: React.FC = () => {
                 {employeeCrew?.membersCount || 4} Specialists on duty
               </div>
             </div>
+          </div>
+
+          {/* Action button for employee to submit repair report */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: '0.75rem' }}>
+            <button
+              onClick={() => {
+                const assignedAsset = assets.find((a) => a.assignedCrewId === employeeCrew?.id) || selectedAsset;
+                setRepairAssetTarget(assignedAsset);
+              }}
+              className="btn-primary"
+              style={{
+                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                borderColor: '#10b981',
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.45rem',
+                padding: '0.55rem 1.25rem',
+                fontSize: '0.85rem',
+                boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+              }}
+            >
+              <Wrench size={16} />
+              <span>Submit Repair Report & Improve Health Score</span>
+            </button>
           </div>
         </div>
       )}
@@ -547,13 +576,34 @@ export const CrewManagementView: React.FC = () => {
                           <span>Dispatch</span>
                         </button>
                       ) : crew.status === 'Assigned' ? (
-                        <button
-                          onClick={() => unassignCrew(crew.id)}
-                          className="btn-secondary btn-sm"
-                          style={{ fontSize: '0.72rem' }}
-                        >
-                          <span>Release</span>
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.35rem' }}>
+                          <button
+                            onClick={() => {
+                              const assignedAsset = assets.find((a) => a.assignedCrewId === crew.id) || selectedAsset;
+                              setRepairAssetTarget(assignedAsset);
+                            }}
+                            className="btn-primary btn-sm"
+                            style={{
+                              fontSize: '0.72rem',
+                              background: '#10b981',
+                              borderColor: '#059669',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.2rem',
+                            }}
+                            title="Submit repair report to restore asset health"
+                          >
+                            <Wrench size={11} />
+                            <span>Repair</span>
+                          </button>
+                          <button
+                            onClick={() => unassignCrew(crew.id)}
+                            className="btn-secondary btn-sm"
+                            style={{ fontSize: '0.72rem' }}
+                          >
+                            <span>Release</span>
+                          </button>
+                        </div>
                       ) : (
                         <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Off Duty</span>
                       )}
@@ -565,6 +615,14 @@ export const CrewManagementView: React.FC = () => {
           </table>
         </div>
       </div>
+
+      {/* Repair Report Modal */}
+      {repairAssetTarget && (
+        <RepairReportModal
+          asset={repairAssetTarget}
+          onClose={() => setRepairAssetTarget(null)}
+        />
+      )}
     </div>
   );
 };

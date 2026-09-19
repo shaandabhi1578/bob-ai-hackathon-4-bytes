@@ -16,12 +16,232 @@ export interface LiveWeatherReport {
   fetchedAt: string;
 }
 
+export interface HourlyForecastItem {
+  time: string;
+  hourNum: number;
+  temp: number;
+  rainProb: number;
+  windSpeed: number;
+  condition: string;
+  gridRisk: 'HIGH' | 'MEDIUM' | 'LOW';
+  iconType: 'sun' | 'cloud' | 'rain' | 'lightning' | 'wind';
+}
+
+export interface DailyForecastItem {
+  day: string;
+  dateStr: string;
+  condition: string;
+  minTemp: number;
+  maxTemp: number;
+  currentTemp?: number;
+  rainProb: number;
+  gridRisk: 'HIGH' | 'MEDIUM' | 'LOW';
+  iconType: 'sun' | 'cloud' | 'rain' | 'lightning' | 'wind';
+}
+
+export interface AtmosphericMetrics {
+  uvIndex: number;
+  uvLevel: string;
+  windDeg: number;
+  windCardinal: string;
+  windGusts: number;
+  aqi: number;
+  aqiStatus: string;
+  flashoverRisk: 'High' | 'Moderate' | 'Low';
+  rainAccumulationMm: number;
+  dewPoint: number;
+  pressureHpa: number;
+  pressureTrend: 'Falling' | 'Steady' | 'Rising';
+  visibilityKm: number;
+  sunrise: string;
+  sunset: string;
+  daylightProgress: number; // 0-100%
+}
+
 export const REGION_COORDINATES: Record<string, { lat: number; lng: number; name: string }> = {
   'reg-amd': { lat: 23.0225, lng: 72.5714, name: 'Ahmedabad' },
   'reg-gn': { lat: 23.2156, lng: 72.6369, name: 'Gandhinagar' },
   'reg-vad': { lat: 22.3072, lng: 73.1812, name: 'Vadodara' },
   'reg-san': { lat: 22.9927, lng: 72.3813, name: 'Sanand' },
 };
+
+/**
+ * Derives rich atmospheric metrics tailored for SCADA power operators and modern weather widgets
+ */
+export function getAtmosphericMetrics(
+  temp: number,
+  windSpeed: number,
+  humidity: number,
+  rainProb: number,
+  lightningRisk: 'Low' | 'Moderate' | 'High' | 'Severe'
+): AtmosphericMetrics {
+  // Dew Point approximation (Magnus formula simplified)
+  const dewPoint = Math.round(temp - (100 - humidity) / 5);
+
+  // Dynamic UV index based on temp and rain
+  const uvIndex = Math.max(1, Math.min(11, Math.round((temp / 4) - (rainProb / 20))));
+  const uvLevel = uvIndex >= 8 ? 'Very High' : uvIndex >= 6 ? 'High' : uvIndex >= 3 ? 'Moderate' : 'Low';
+
+  // Wind direction and gusts
+  const windDeg = windSpeed > 40 ? 235 : 210; // Southwest monsoon prevailing
+  const windCardinal = 'SW';
+  const windGusts = Math.round(windSpeed * 1.35);
+
+  // Air Quality & Surface particulate pollution index
+  const aqi = Math.round(110 + (windSpeed > 35 ? -30 : 25) + (humidity > 70 ? 20 : 0));
+  const aqiStatus = aqi > 150 ? 'Unhealthy' : aqi > 100 ? 'Moderate' : 'Good';
+  const flashoverRisk: 'High' | 'Moderate' | 'Low' =
+    humidity > 80 && aqi > 120 ? 'High' : humidity > 65 ? 'Moderate' : 'Low';
+
+  // Rain accumulation
+  const rainAccumulationMm = +(rainProb * 0.28).toFixed(1);
+
+  // Barometric pressure (drops with storm squall)
+  const pressureHpa = Math.round(1012 - (rainProb * 0.15) - (windSpeed * 0.08));
+  const pressureTrend: 'Falling' | 'Steady' | 'Rising' =
+    rainProb > 60 || windSpeed > 45 ? 'Falling' : 'Steady';
+
+  // Visibility in km
+  const visibilityKm = Math.max(2.5, +(10 - (rainProb * 0.06) - (humidity > 80 ? 2 : 0)).toFixed(1));
+
+  return {
+    uvIndex,
+    uvLevel,
+    windDeg,
+    windCardinal,
+    windGusts,
+    aqi,
+    aqiStatus,
+    flashoverRisk,
+    rainAccumulationMm,
+    dewPoint,
+    pressureHpa,
+    pressureTrend,
+    visibilityKm,
+    sunrise: '06:18 AM',
+    sunset: '06:52 PM',
+    daylightProgress: 65,
+  };
+}
+
+/**
+ * Generates 24-hour hourly forecast timeline for consumer weather carousel
+ */
+export function generateHourlyForecast(
+  baseTemp: number,
+  baseRain: number,
+  baseWind: number,
+  condition: string,
+  gridRisk: 'HIGH' | 'MEDIUM' | 'LOW'
+): HourlyForecastItem[] {
+  const currentHour = new Date().getHours();
+  const items: HourlyForecastItem[] = [];
+
+  for (let i = 0; i < 24; i++) {
+    const targetHour = (currentHour + i) % 24;
+    const hourLabel = i === 0 ? 'Now' : `${targetHour.toString().padStart(2, '0')}:00`;
+    
+    // Diurnal temperature variation
+    // Cooler at night (03:00-06:00), peak at 14:00-16:00
+    const diurnalFactor = Math.sin(((targetHour - 9) / 24) * 2 * Math.PI);
+    const tempDelta = Math.round(diurnalFactor * 4);
+    const hourTemp = Math.max(18, baseTemp + tempDelta);
+
+    // Rain & wind variations
+    const rainNoise = Math.sin(i * 0.7) * 15;
+    const hourRain = Math.max(5, Math.min(95, Math.round(baseRain + rainNoise)));
+    const hourWind = Math.max(8, Math.round(baseWind + Math.cos(i * 0.5) * 8));
+
+    let hourRisk: 'HIGH' | 'MEDIUM' | 'LOW' = 'LOW';
+    if (hourRain >= 70 || hourWind >= 45 || hourTemp >= 40) {
+      hourRisk = 'HIGH';
+    } else if (hourRain >= 40 || hourWind >= 30 || hourTemp >= 36) {
+      hourRisk = 'MEDIUM';
+    }
+
+    let iconType: HourlyForecastItem['iconType'] = 'sun';
+    if (condition.toLowerCase().includes('thunder') || hourRisk === 'HIGH') {
+      iconType = 'lightning';
+    } else if (hourRain > 50) {
+      iconType = 'rain';
+    } else if (hourWind > 35) {
+      iconType = 'wind';
+    } else if (hourTemp > 33) {
+      iconType = 'sun';
+    } else {
+      iconType = 'cloud';
+    }
+
+    items.push({
+      time: hourLabel,
+      hourNum: targetHour,
+      temp: hourTemp,
+      rainProb: hourRain,
+      windSpeed: hourWind,
+      condition:
+        iconType === 'lightning'
+          ? 'Squall & Thunder'
+          : iconType === 'rain'
+          ? 'Rain Showers'
+          : iconType === 'wind'
+          ? 'Breezy Gusts'
+          : iconType === 'sun'
+          ? 'Sunny'
+          : 'Partly Cloudy',
+      gridRisk: hourRisk,
+      iconType,
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Generates 7-day extended forecast with min/max spans for Apple Weather style outlook
+ */
+export function generateDailyForecast(
+  baseTemp: number,
+  baseRain: number,
+  gridRisk: 'HIGH' | 'MEDIUM' | 'LOW'
+): DailyForecastItem[] {
+  const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const todayIndex = new Date().getDay();
+  const items: DailyForecastItem[] = [];
+
+  const scenarios: { condition: string; rain: number; tempOffset: number; icon: DailyForecastItem['iconType'] }[] = [
+    { condition: 'Severe Squall', rain: baseRain, tempOffset: 0, icon: 'lightning' },
+    { condition: 'Passing Showers', rain: Math.max(25, baseRain - 20), tempOffset: -2, icon: 'rain' },
+    { condition: 'Scattered Storms', rain: Math.max(40, baseRain - 10), tempOffset: -1, icon: 'lightning' },
+    { condition: 'Breezy & Cleared', rain: 20, tempOffset: 1, icon: 'wind' },
+    { condition: 'Sunny & Hot', rain: 10, tempOffset: 3, icon: 'sun' },
+    { condition: 'High Thermal Wave', rain: 5, tempOffset: 4, icon: 'sun' },
+    { condition: 'Partly Cloudy', rain: 15, tempOffset: 1, icon: 'cloud' },
+  ];
+
+  for (let i = 0; i < 7; i++) {
+    const dayName = i === 0 ? 'Today' : daysOfWeek[(todayIndex + i) % 7];
+    const s = scenarios[i % scenarios.length];
+    const maxT = baseTemp + s.tempOffset;
+    const minT = maxT - Math.round(7 + (i % 3));
+
+    const dayRisk: 'HIGH' | 'MEDIUM' | 'LOW' =
+      s.rain >= 65 || maxT >= 41 ? 'HIGH' : s.rain >= 35 || maxT >= 37 ? 'MEDIUM' : 'LOW';
+
+    items.push({
+      day: dayName,
+      dateStr: `Sep ${19 + i}`,
+      condition: s.condition,
+      minTemp: minT,
+      maxTemp: maxT,
+      currentTemp: i === 0 ? baseTemp : undefined,
+      rainProb: s.rain,
+      gridRisk: dayRisk,
+      iconType: s.icon,
+    });
+  }
+
+  return items;
+}
 
 /**
  * Maps WMO weather interpretation codes to conditions and grid operational risk

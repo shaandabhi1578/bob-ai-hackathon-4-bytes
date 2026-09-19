@@ -145,11 +145,91 @@ const Probe: React.FC = () => {
         data-testid="btn-preset-clear"
         onClick={() => ctx.applyWeatherPreset('nominal-clear')}
       >Apply clear</button>
+
+      {/* asset CRUD and repair test buttons */}
+      <span data-testid="assets-count">{ctx.assets.length}</span>
+      <span data-testid="admin-alerts-count">{ctx.adminAlerts.length}</span>
+      <span data-testid="infrastructure-count">{ctx.infrastructurePOIs.length}</span>
+
+      <button
+        data-testid="btn-add-asset"
+        onClick={() =>
+          ctx.addAsset({
+            id: 'T-999',
+            name: 'Transformer T-999',
+            type: 'Transformer',
+            location: 'Ahmedabad West',
+            substation: 'Substation S-17 (Sabarmati 400kV)',
+            coordinates: { lat: 23.08, lng: 72.56, x: 50, y: 50 },
+            healthScore: 92,
+            failureRisk: 8,
+            status: 'Healthy',
+            gridImpactCustomers: 8500,
+            predictedFailureWindow: 'Normal Operation',
+            recommendedAction: 'Routine monitoring',
+            priority: 'P4 - Routine',
+            temperature: 58,
+            vibration: 1.2,
+            oilQuality: 'Good',
+            oilTemperature: 54,
+            partialDischarge: 40,
+            loadPercentage: 65,
+            voltageKV: 220,
+            currentA: 400,
+            lastMaintenance: 'Today',
+            weatherExposure: 'Low',
+            sensorRisk: 8,
+            weatherRisk: 10,
+            historicalRisk: 12,
+            confidence: 90,
+            reasons: ['New commissioning'],
+            commissionYear: 2026,
+          })
+        }
+      >Add Asset</button>
+
+      <button
+        data-testid="btn-remove-asset-t999"
+        onClick={() => ctx.removeAsset('T-999')}
+      >Remove T-999</button>
+
+      <button
+        data-testid="btn-repair-t104"
+        onClick={() =>
+          ctx.repairAsset('T-104', {
+            assetId: 'T-104',
+            assetName: 'Transformer T-104',
+            technicianName: 'R. K. Sharma',
+            technicianRole: 'Lead Transformer Specialist',
+            workSummary: 'Replaced bushings, vacuum oil dehydration, calibrated OLTC',
+            actionsTaken: ['Bushing replacement', 'Oil dehydration'],
+            partsReplaced: ['HV Bushing B-Phase'],
+            metricsBefore: {
+              healthScore: 42,
+              failureRisk: 87,
+              temperature: 91,
+              vibration: 4.8,
+              oilQuality: 'Poor',
+              partialDischarge: 320,
+            },
+            metricsAfter: {
+              healthScore: 96,
+              failureRisk: 6,
+              temperature: 54,
+              vibration: 1.1,
+              oilQuality: 'Good',
+              partialDischarge: 25,
+            },
+            statusAfter: 'Healthy',
+          })
+        }
+      >Repair T-104</button>
     </div>
   );
 };
 
 function renderProvider() {
+  localStorage.clear();
   return render(
     <GridProvider>
       <Probe />
@@ -469,3 +549,76 @@ describe('useGrid — guard outside provider', () => {
     spy.mockRestore();
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. Asset Inventory Management (CRUD) & Persistence
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('GridContext — Asset Inventory Management', () => {
+  beforeEach(() => renderProvider());
+
+  it('adds an asset to the inventory and updates count', async () => {
+    const initialCount = Number(get('assets-count'));
+    await userEvent.click(screen.getByTestId('btn-add-asset'));
+
+    await waitFor(() => {
+      expect(Number(get('assets-count'))).toBe(initialCount + 1);
+      expect(get('selected-asset-id')).toBe('T-999');
+      expect(get('selected-asset-status')).toBe('Healthy');
+      expect(get('toast-title')).toContain('Asset Added');
+    });
+  });
+
+  it('removes an asset from the inventory', async () => {
+    // First add T-999
+    await userEvent.click(screen.getByTestId('btn-add-asset'));
+    const countAfterAdd = Number(get('assets-count'));
+
+    // Remove T-999
+    await userEvent.click(screen.getByTestId('btn-remove-asset-t999'));
+
+    await waitFor(() => {
+      expect(Number(get('assets-count'))).toBe(countAfterAdd - 1);
+      expect(get('toast-title')).toContain('Asset Decommissioned');
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. Employee Repair Workflow & Health Score Improvement
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('GridContext — Employee Repair Workflow', () => {
+  beforeEach(() => renderProvider());
+
+  it('submitting a repair report restores asset health and resets status to Healthy', async () => {
+    expect(get('selected-asset-status')).toBe('Critical');
+
+    await userEvent.click(screen.getByTestId('btn-repair-t104'));
+
+    await waitFor(() => {
+      expect(get('selected-asset-status')).toBe('Healthy');
+      expect(get('selected-asset-failure-risk')).toBe('6');
+      expect(get('toast-title')).toContain('Repair Logged Successfully');
+    });
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 10. Critical Infrastructure POIs & Admin Risk Alerts
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe('GridContext — Infrastructure POIs and Admin Risk Alerts', () => {
+  beforeEach(() => renderProvider());
+
+  it('loads critical civil infrastructure POIs (hospitals, schools, fire)', () => {
+    const count = Number(get('infrastructure-count'));
+    expect(count).toBeGreaterThanOrEqual(10);
+  });
+
+  it('admin alerts list contains all assets currently at risk', () => {
+    const alertsCount = Number(get('admin-alerts-count'));
+    expect(alertsCount).toBeGreaterThanOrEqual(2);
+  });
+});
+

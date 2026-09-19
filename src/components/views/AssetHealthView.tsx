@@ -14,10 +14,17 @@ import {
   Gauge,
   Droplets,
   Zap,
+  Plus,
+  Trash2,
+  Wrench,
+  RotateCcw,
+  CheckCircle2,
 } from 'lucide-react';
 import { useGrid } from '../../context/GridContext';
 import { GridAsset, AssetType, AssetStatus } from '../../types';
 import { generateSensorHistory, SENSOR_THRESHOLDS } from '../../data/sensors';
+import { AddAssetModal } from '../common/AddAssetModal';
+import { RepairReportModal } from '../common/RepairReportModal';
 
 export const AssetHealthView: React.FC = () => {
   const {
@@ -26,7 +33,13 @@ export const AssetHealthView: React.FC = () => {
     setSelectedAssetId,
     selectedAsset,
     setActiveTab,
+    removeAsset,
+    resetAssetsToDefault,
   } = useGrid();
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [repairTargetAsset, setRepairTargetAsset] = useState<GridAsset | null>(null);
+  const [assetToDelete, setAssetToDelete] = useState<GridAsset | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -94,22 +107,42 @@ export const AssetHealthView: React.FC = () => {
   return (
     <div className="page-content" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Page Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
         <div>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#0f172a' }}>
-            Asset Health & Condition Monitoring
+            Asset Inventory & Condition Monitoring
           </h2>
           <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-            Real-time fleet telemetry, diagnostic threshold deviations, and failure risk indices.
+            Full grid inventory CRUD, live sensor telemetry, repair calibrations, and threshold monitoring.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: '#2563eb' }}
+          >
+            <Plus size={15} />
+            <span>Add New Asset</span>
+          </button>
+
+          <button
+            onClick={resetAssetsToDefault}
+            className="btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Reset fleet back to default seed assets"
+          >
+            <RotateCcw size={13} />
+            <span>Reset Default Fleet</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('failure-prediction')}
-            className="btn-primary btn-sm"
+            className="btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
           >
-            <span>Run AI Prediction Engine</span>
+            <span>Run AI Prediction</span>
             <ArrowRight size={14} />
           </button>
         </div>
@@ -305,17 +338,60 @@ export const AssetHealthView: React.FC = () => {
                       </span>
                     </td>
                     <td style={{ textAlign: 'right' }}>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedAssetId(asset.id);
-                          setActiveTab('failure-prediction');
-                        }}
-                        className="btn-secondary btn-sm"
-                        style={{ fontSize: '0.72rem' }}
-                      >
-                        <span>Analyze</span>
-                      </button>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAssetId(asset.id);
+                            setRepairTargetAsset(asset);
+                          }}
+                          className="btn-secondary btn-sm"
+                          style={{
+                            fontSize: '0.72rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            background: asset.status === 'Critical' ? '#eff6ff' : '#f8fafc',
+                            borderColor: asset.status === 'Critical' ? '#93c5fd' : '#e2e8f0',
+                            color: '#2563eb',
+                            fontWeight: 600,
+                          }}
+                          title="Submit employee repair report and restore health score"
+                        >
+                          <Wrench size={11} />
+                          <span>Repair</span>
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedAssetId(asset.id);
+                            setActiveTab('failure-prediction');
+                          }}
+                          className="btn-secondary btn-sm"
+                          style={{ fontSize: '0.72rem' }}
+                        >
+                          <span>Analyze</span>
+                        </button>
+
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setAssetToDelete(asset);
+                          }}
+                          className="btn-secondary btn-sm"
+                          style={{
+                            fontSize: '0.72rem',
+                            color: '#dc2626',
+                            borderColor: '#fecaca',
+                            background: '#fff5f5',
+                            padding: '0.25rem 0.5rem',
+                          }}
+                          title={`Decommission ${asset.name}`}
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -479,6 +555,105 @@ export const AssetHealthView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Add Asset Modal */}
+      {isAddModalOpen && <AddAssetModal onClose={() => setIsAddModalOpen(false)} />}
+
+      {/* Repair Report Modal */}
+      {repairTargetAsset && (
+        <RepairReportModal
+          asset={repairTargetAsset}
+          onClose={() => setRepairTargetAsset(null)}
+        />
+      )}
+
+      {/* Decommission Asset Confirmation Dialog */}
+      {assetToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 10000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setAssetToDelete(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '12px',
+              maxWidth: '440px',
+              width: '100%',
+              padding: '1.5rem',
+              boxShadow: 'var(--shadow-xl)',
+              border: '1px solid #e2e8f0',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <div
+                style={{
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  background: '#fef2f2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#dc2626',
+                }}
+              >
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#0f172a' }}>
+                  Decommission Asset?
+                </h3>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                  Permanent fleet removal confirmation
+                </div>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.82rem', color: '#475569', lineHeight: 1.5, marginBottom: '1.25rem' }}>
+              Are you sure you want to remove <strong>{assetToDelete.name} ({assetToDelete.id})</strong> at {assetToDelete.substation} from active Gujarat SCADA inventory? This will remove its real-time telemetry from the map and recalculate fleet stability.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setAssetToDelete(null)}
+                className="btn-secondary"
+                style={{ padding: '0.4rem 1rem', fontSize: '0.8rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  removeAsset(assetToDelete.id);
+                  setAssetToDelete(null);
+                }}
+                className="btn-primary"
+                style={{
+                  background: '#dc2626',
+                  borderColor: '#dc2626',
+                  padding: '0.4rem 1.1rem',
+                  fontSize: '0.8rem',
+                  fontWeight: 700,
+                }}
+              >
+                Confirm Decommission
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

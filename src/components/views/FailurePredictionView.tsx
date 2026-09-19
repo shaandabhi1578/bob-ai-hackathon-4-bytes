@@ -33,6 +33,7 @@ export const FailurePredictionView: React.FC = () => {
     assignCrew,
     crews,
     activeWeatherRegion,
+    commitSimulationToAsset,
   } = useGrid();
 
   // Baseline risk for delta calculation
@@ -468,7 +469,24 @@ export const FailurePredictionView: React.FC = () => {
             </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <button
+              onClick={() => commitSimulationToAsset(selectedAsset.id)}
+              className="btn-primary btn-sm"
+              style={{
+                background: '#2563eb',
+                borderColor: '#1d4ed8',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontWeight: 700,
+              }}
+              title="Apply simulated telemetry directly to the live asset and update dashboard map"
+            >
+              <Zap size={13} />
+              <span>Apply to Fleet & Map</span>
+            </button>
+
             <button
               onClick={resetSimulation}
               className="btn-secondary btn-sm"

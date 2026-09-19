@@ -64,7 +64,7 @@ export const Sidebar: React.FC = () => {
     },
     {
       id: 'asset-health',
-      label: 'Asset Diagnostics',
+      label: 'Asset Inventory & Health',
       icon: Activity,
     },
     {

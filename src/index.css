@@ -605,3 +605,220 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Modern Consumer Weather App Design System
+   ========================================================================== */
+
+/* Atmospheric Dynamic Sky Gradients */
+.weather-sky-thunderstorm {
+  background: radial-gradient(circle at 85% 15%, rgba(59, 130, 246, 0.25), transparent 45%),
+              linear-gradient(135deg, #090e1f 0%, #151a36 40%, #1c244b 75%, #0f172a 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-sky-heatwave {
+  background: radial-gradient(circle at 85% 15%, rgba(251, 146, 60, 0.3), transparent 50%),
+              linear-gradient(135deg, #431407 0%, #7c2d12 40%, #9a3412 75%, #c2410c 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-sky-monsoon {
+  background: radial-gradient(circle at 80% 20%, rgba(56, 189, 248, 0.25), transparent 50%),
+              linear-gradient(135deg, #082f49 0%, #0c4a6e 40%, #075985 75%, #0369a1 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-sky-sunny {
+  background: radial-gradient(circle at 85% 15%, rgba(253, 224, 71, 0.35), transparent 45%),
+              linear-gradient(135deg, #0284c7 0%, #0ea5e9 45%, #38bdf8 80%, #60a5fa 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-sky-overcast {
+  background: radial-gradient(circle at 85% 15%, rgba(148, 163, 184, 0.25), transparent 45%),
+              linear-gradient(135deg, #1e293b 0%, #334155 45%, #475569 80%, #334155 100%);
+  color: #ffffff;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Glassmorphic weather cards */
+.weather-glass-card {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 16px;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.weather-glass-card:hover {
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 12px 36px 0 rgba(0, 0, 0, 0.32);
+}
+
+.weather-glass-pill {
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+  color: #ffffff;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Bento Weather Metric Tiles */
+.weather-bento-tile {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.weather-bento-tile:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: #cbd5e1;
+}
+
+.weather-bento-tile-header {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #64748b;
+  margin-bottom: 0.6rem;
+}
+
+/* Horizontal Hourly Carousel */
+.hourly-scroll-container {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding: 0.5rem 0.25rem 0.75rem 0.25rem;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.hourly-scroll-container::-webkit-scrollbar {
+  height: 6px;
+}
+
+.hourly-scroll-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 9999px;
+}
+
+.hourly-scroll-container::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.5);
+  border-radius: 9999px;
+}
+
+.hourly-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 116, 139, 0.8);
+}
+
+.hourly-item-card {
+  min-width: 82px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0.85rem 0.5rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(8px);
+  transition: all 0.15s ease;
+  color: #ffffff;
+}
+
+.hourly-item-card:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.hourly-item-card.active {
+  background: rgba(255, 255, 255, 0.24);
+  border-color: #38bdf8;
+  box-shadow: 0 4px 12px rgba(56, 189, 248, 0.25);
+}
+
+/* Temperature Range Bar */
+.temp-range-track {
+  flex: 1;
+  height: 5px;
+  background: #e2e8f0;
+  border-radius: 9999px;
+  position: relative;
+  overflow: hidden;
+}
+
+.temp-range-fill {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #38bdf8 0%, #fbbf24 60%, #ef4444 100%);
+}
+
+.temp-range-dot {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #0f172a;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+/* Rotating Compass */
+@keyframes compass-wobble {
+  0% { transform: rotate(var(--target-deg, 225deg)); }
+  50% { transform: rotate(calc(var(--target-deg, 225deg) + 3deg)); }
+  100% { transform: rotate(var(--target-deg, 225deg)); }
+}
+
+.compass-dial {
+  animation: compass-wobble 4s ease-in-out infinite;
+}
+
+/* Radar Pulse & Sweep */
+@keyframes radar-sweep {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.radar-sweep-beam {
+  transform-origin: 50px 40px;
+  animation: radar-sweep 4s linear infinite;
+}
+
